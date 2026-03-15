@@ -45,7 +45,7 @@ export async function recognizeImage(
   subjectHint?: string
 ): Promise<RecognitionResult> {
   return withRetry(async () => {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const subjectInstructions = subjectHint
       ? `用户提示科目是：${subjectHint}。`
@@ -130,7 +130,7 @@ export async function generateQuestions(
   originalContent: string
 ): Promise<Question[]> {
   return withRetry(async () => {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const subjectPrompt = SUBJECT_PROMPTS[subject] || SUBJECT_PROMPTS['数学']
 
