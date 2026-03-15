@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
-import { ChevronLeft, Star, Zap, RotateCcw } from 'lucide-react'
+import { ChevronLeft, Star, Zap, RotateCcw, Clock, Trophy } from 'lucide-react'
 
 interface Question {
   id: number
@@ -32,6 +32,7 @@ interface PracticeResult {
     newStreak: number
     message: string
     pointsEarned: number
+    nextReviewAt?: string | null
   }
   detailedResults: Array<{
     questionIndex: number
@@ -47,12 +48,14 @@ const SUBJECT_BG: Record<string, string> = {
   '英语': 'from-green-500 to-green-600',
 }
 
-const STATUS_NEXT_MSG: Record<string, string> = {
-  MASTERED: '🏆 完全掌握！',
-  REVIEWING_2: '🌟 即将掌握！',
-  REVIEWING_1: '✨ 进入复习阶段！',
-  PRACTICING: '💪 继续练习！',
+const STATUS_NEXT_MSG: Record<string, { msg: string; emoji: string }> = {
+  MASTERED: { msg: '完全掌握！', emoji: '🏆' },
+  REVIEWING_2: { msg: '即将掌握！', emoji: '🌟' },
+  REVIEWING_1: { msg: '进入复习阶段！', emoji: '✨' },
+  PRACTICING: { msg: '继续练习！', emoji: '💪' },
 }
+
+const OPTION_LETTERS = ['A', 'B', 'C', 'D']
 
 function PracticeContent() {
   const router = useRouter()
@@ -72,12 +75,22 @@ function PracticeContent() {
   const [result, setResult] = useState<PracticeResult | null>(null)
   const [comboCount, setComboCount] = useState(0)
   const [showComboAnim, setShowComboAnim] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [startTime] = useState(Date.now())
+  const [elapsed, setElapsed] = useState(0)
+
+  // 计时器
+  useEffect(() => {
+    if (result) return
+    const timer = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTime) / 1000))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [result, startTime])
 
   useEffect(() => {
-    if (mistakeId) {
-      fetchPractice()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (mistakeId) fetchPractice()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mistakeId])
 
   async function fetchPractice() {
@@ -113,38 +126,42 @@ function PracticeContent() {
       setComboCount(newCombo)
       if (newCombo >= 3) {
         setShowComboAnim(true)
-        setTimeout(() => setShowComboAnim(false), 2000)
+        setTimeout(() => setShowComboAnim(false), 2500)
       }
     } else {
       setComboCount(0)
     }
 
-    const newAnswers = [...answers, answer]
-    setAnswers(newAnswers)
+    setAnswers(prev => [...prev, answer])
   }
 
-  function handleNext() {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1)
-      setSelectedAnswer(null)
-      setFillAnswer('')
-      setShowFeedback(false)
-      setIsCorrect(false)
-    } else {
-      submitPractice()
-    }
-  }
+  const handleNext = useCallback(() => {
+    setIsTransitioning(true)
+    setTimeout(() => {
+      if (currentIndex < questions.length - 1) {
+        setCurrentIndex(prev => prev + 1)
+        setSelectedAnswer(null)
+        setFillAnswer('')
+        setShowFeedback(false)
+        setIsCorrect(false)
+        setIsTransitioning(false)
+      } else {
+        submitPractice()
+      }
+    }, 250)
+  }, [currentIndex, questions.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submitPractice() {
     setSubmitting(true)
+    setIsTransitioning(false)
     try {
       const res = await fetch('/api/practice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mistakeId,
-          questions: questions,
-          answers: answers,
+          questions,
+          answers,
         }),
       })
       const data = await res.json()
@@ -156,135 +173,186 @@ function PracticeContent() {
     }
   }
 
+  function formatTime(seconds: number) {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return m > 0 ? `${m}分${s}秒` : `${s}秒`
+  }
+
+  // =========== 空状态 ===========
   if (!mistakeId) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-slate-500 mb-4">没有选择练习题</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center px-8">
+          <div className="text-6xl mb-4">🤔</div>
+          <p className="text-slate-500 mb-6 font-medium">没有选择练习题</p>
           <button onClick={() => router.push('/mistakes')} className="btn-primary">
-            去选择错题
+            去错题库选择
           </button>
         </div>
       </div>
     )
   }
 
+  // =========== 加载状态 ===========
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-500 to-blue-600">
-        <div className="text-center text-white">
-          <div className="text-6xl mb-4 animate-bounce">⚡</div>
-          <p className="text-xl font-bold">生成练习题中...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-500 to-blue-600">
+        <div className="text-center text-white space-y-4">
+          <div className="text-6xl animate-bounce">⚡</div>
+          <h2 className="text-xl font-bold">Gemini AI 出题中...</h2>
+          <p className="text-blue-200 text-sm">正在为你生成5道个性化练习题</p>
+          <div className="flex space-x-2 justify-center mt-4">
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                className="w-3 h-3 bg-white/60 rounded-full animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
+  // =========== 提交中 ===========
   if (submitting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-500 to-blue-600">
         <div className="text-center text-white">
-          <div className="text-6xl mb-4 animate-spin">⚙️</div>
-          <p className="text-xl font-bold">判分中...</p>
+          <div className="text-6xl mb-4">⚙️</div>
+          <p className="text-xl font-bold">正在计算得分...</p>
         </div>
       </div>
     )
   }
 
-  // 结果页
+  // =========== 结果页 ===========
   if (result) {
     const scoreRate = Math.round((result.score / result.total) * 100)
-    
+    const statusInfo = STATUS_NEXT_MSG[result.srResult.newStatus] || { msg: '继续努力！', emoji: '💪' }
+    const totalTime = elapsed
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-600 to-blue-500 pb-24">
-        {/* Header */}
+        {/* Result header */}
         <div className="px-5 pt-12 pb-6 text-white text-center">
-          <div className="text-6xl mb-3 animate-bounce-in">
-            {result.allCorrect ? '🏆' : scoreRate >= 60 ? '⭐' : '💪'}
+          <div className="text-7xl mb-3 animate-bounce-in">
+            {result.allCorrect ? '🏆' : scoreRate >= 80 ? '⭐' : scoreRate >= 60 ? '👍' : '💪'}
           </div>
-          <h2 className="text-2xl font-bold mb-1">
-            {result.allCorrect ? '全部正确！' : `得分 ${scoreRate}%`}
+          <h2 className="text-3xl font-black mb-1">
+            {result.allCorrect ? '全部正确！' : `得了 ${result.score}/${result.total} 分`}
           </h2>
           <p className="text-blue-100">{result.srResult.message}</p>
+          <div className="flex items-center justify-center gap-4 mt-3 text-sm text-blue-200">
+            <div className="flex items-center gap-1">
+              <Clock size={14} />
+              <span>用时 {formatTime(totalTime)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Zap size={14} />
+              <span>连胜 {comboCount} 题</span>
+            </div>
+          </div>
         </div>
 
         <div className="bg-slate-50 rounded-t-3xl px-5 pt-6 min-h-[65vh]">
           {/* Score card */}
-          <div className="card mb-5 text-center">
+          <div className="card mb-5">
             <div className="flex items-center justify-center gap-8 mb-4">
-              <div>
-                <div className="text-3xl font-bold text-blue-600">{result.score}</div>
-                <div className="text-xs text-slate-400">答对</div>
+              <div className="text-center">
+                <div className="text-4xl font-black text-blue-600">{result.score}</div>
+                <div className="text-xs text-slate-400 mt-1">答对题数</div>
               </div>
               <div className="text-2xl text-slate-300">/</div>
-              <div>
-                <div className="text-3xl font-bold text-slate-400">{result.total}</div>
-                <div className="text-xs text-slate-400">总题数</div>
+              <div className="text-center">
+                <div className="text-4xl font-black text-slate-400">{result.total}</div>
+                <div className="text-xs text-slate-400 mt-1">总题数</div>
+              </div>
+              <div className="text-2xl text-slate-300">=</div>
+              <div className="text-center">
+                <div className={`text-4xl font-black ${scoreRate >= 80 ? 'text-green-500' : 'text-orange-500'}`}>
+                  {scoreRate}%
+                </div>
+                <div className="text-xs text-slate-400 mt-1">正确率</div>
               </div>
             </div>
-            
-            {/* Progress bar */}
+
+            {/* Score progress bar */}
             <div className="bg-slate-100 rounded-full h-4 overflow-hidden mb-3">
               <div
                 className={`h-full rounded-full transition-all duration-1000 ${
-                  scoreRate >= 80 ? 'bg-gradient-to-r from-green-400 to-green-500' 
+                  scoreRate >= 80 ? 'bg-gradient-to-r from-green-400 to-green-500'
                   : 'bg-gradient-to-r from-orange-400 to-orange-500'
                 }`}
                 style={{ width: `${scoreRate}%` }}
               />
             </div>
-            
+
             {/* Points earned */}
-            <div className="flex items-center justify-center gap-2 bg-yellow-50 rounded-2xl py-2 px-4">
-              <Star size={18} className="text-yellow-500" fill="currentColor" />
-              <span className="font-bold text-yellow-700">
+            <div className="flex items-center justify-center gap-2 bg-yellow-50 rounded-2xl py-3 px-4">
+              <Star size={20} className="text-yellow-500" fill="currentColor" />
+              <span className="font-bold text-yellow-700 text-lg">
                 +{result.srResult.pointsEarned} 积分
               </span>
             </div>
           </div>
 
-          {/* Status update */}
+          {/* Status update card */}
           <div className={`card mb-5 border-2 ${
-            result.srResult.newStatus === 'MASTERED' 
-              ? 'border-green-200 bg-green-50' 
+            result.srResult.newStatus === 'MASTERED'
+              ? 'border-green-200 bg-green-50'
               : 'border-blue-200 bg-blue-50'
           }`}>
             <div className="flex items-center gap-3">
-              <div className="text-3xl">
-                {STATUS_NEXT_MSG[result.srResult.newStatus]?.split(' ')[0]}
-              </div>
+              <div className="text-3xl">{statusInfo.emoji}</div>
               <div>
-                <p className="font-bold text-slate-700">
-                  {STATUS_NEXT_MSG[result.srResult.newStatus]}
-                </p>
+                <p className="font-bold text-slate-700">{statusInfo.msg}</p>
                 <p className="text-sm text-slate-500">
                   连续全对：{result.srResult.newStreak} 次
                 </p>
+                {result.srResult.nextReviewAt && (
+                  <p className="text-xs text-purple-500 mt-0.5">
+                    📅 下次复习：{new Date(result.srResult.nextReviewAt).toLocaleDateString('zh-CN')}
+                  </p>
+                )}
               </div>
             </div>
           </div>
 
           {/* Detailed results */}
           <div className="card mb-5">
-            <h3 className="font-bold text-slate-700 mb-3">答题详情</h3>
+            <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <Trophy size={18} className="text-orange-500" />
+              答题详情
+            </h3>
             <div className="space-y-2">
               {result.detailedResults.map((r, idx) => (
                 <div
                   key={idx}
-                  className={`flex items-center gap-3 p-3 rounded-xl ${
+                  className={`flex items-start gap-3 p-3 rounded-2xl ${
                     r.isCorrect ? 'bg-green-50' : 'bg-red-50'
                   }`}
                 >
-                  <div className={`text-xl ${r.isCorrect ? 'text-green-500' : 'text-red-500'}`}>
+                  <div className={`text-xl flex-shrink-0 ${r.isCorrect ? 'text-green-500' : 'text-red-500'}`}>
                     {r.isCorrect ? '✅' : '❌'}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-slate-600">第 {idx + 1} 题</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-600">第 {idx + 1} 题</p>
                     {!r.isCorrect && (
-                      <p className="text-xs text-red-500">
-                        正确答案：{r.correctAnswer}
-                      </p>
+                      <>
+                        <p className="text-xs text-red-500 truncate">
+                          你的答案：{r.userAnswer || '（未作答）'}
+                        </p>
+                        <p className="text-xs text-green-600 font-medium truncate">
+                          正确答案：{r.correctAnswer}
+                        </p>
+                      </>
                     )}
+                  </div>
+                  <div className={`text-sm font-bold ${r.isCorrect ? 'text-green-600' : 'text-red-400'}`}>
+                    {r.isCorrect ? '+1' : '✗'}
                   </div>
                 </div>
               ))}
@@ -302,15 +370,17 @@ function PracticeContent() {
                 setFillAnswer('')
                 setShowFeedback(false)
                 setComboCount(0)
+                setLoading(true)
+                fetchPractice()
               }}
-              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold bg-slate-200 text-slate-600 active:scale-95 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold bg-slate-200 text-slate-600 active:scale-95 transition-all min-h-[44px]"
             >
               <RotateCcw size={18} />
               再练一次
             </button>
             <button
               onClick={() => router.push('/')}
-              className="flex-1 btn-primary"
+              className="flex-1 btn-primary min-h-[44px]"
             >
               🏠 回首页
             </button>
@@ -328,12 +398,15 @@ function PracticeContent() {
 
   return (
     <div className={`min-h-screen bg-gradient-to-b ${bgGradient} pb-24`}>
-      {/* Combo animation */}
+      {/* 连胜动画 */}
       {showComboAnim && (
-        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center h-screen pointer-events-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="text-center animate-bounce-in">
-            <div className="text-6xl mb-2">🔥🔥🔥</div>
-            <div className="text-3xl font-black text-white drop-shadow-lg">连胜 {comboCount}!</div>
+            <div className="text-7xl mb-2">🔥</div>
+            <div className="text-4xl font-black text-white drop-shadow-lg">
+              连胜 {comboCount}!
+            </div>
+            <div className="text-lg text-yellow-300 font-bold mt-1">太厉害了！</div>
           </div>
         </div>
       )}
@@ -341,81 +414,92 @@ function PracticeContent() {
       {/* Header */}
       <div className="px-5 pt-12 pb-4 text-white">
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => router.back()} className="p-2 rounded-full bg-white/20">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-full bg-white/20 min-w-[44px] min-h-[44px] flex items-center justify-center"
+          >
             <ChevronLeft size={20} />
           </button>
           <div className="flex-1">
-            <p className="text-sm opacity-80">{mistake?.subject} · {mistake?.knowledgePoint}</p>
+            <p className="text-sm opacity-80">
+              {mistake?.subject} · {mistake?.knowledgePoint}
+            </p>
           </div>
-          <div className="flex items-center gap-1 bg-white/20 rounded-full px-3 py-1">
-            <Zap size={14} className="text-orange-300" />
-            <span className="text-sm font-bold text-orange-200">x{comboCount}</span>
+          <div className="flex items-center gap-1 bg-white/20 rounded-full px-3 py-1.5">
+            <Zap size={14} className="text-yellow-300" />
+            <span className="text-sm font-bold text-yellow-200">×{comboCount}</span>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="flex items-center gap-3 mb-2">
+        {/* Progress */}
+        <div className="flex items-center gap-3">
           <div className="flex-1 bg-white/20 rounded-full h-3 overflow-hidden">
             <div
               className="bg-white h-full rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <span className="text-sm font-bold opacity-90">
+          <span className="text-sm font-bold opacity-90 w-12 text-right">
             {currentIndex + 1}/{questions.length}
           </span>
+        </div>
+
+        {/* Timer */}
+        <div className="flex items-center gap-1 mt-2 opacity-70">
+          <Clock size={12} />
+          <span className="text-xs">{formatTime(elapsed)}</span>
         </div>
       </div>
 
       {/* Question area */}
-      <div className="bg-slate-50 rounded-t-3xl px-5 pt-6 min-h-[70vh]">
-        
-        {/* Question */}
+      <div className={`bg-slate-50 rounded-t-3xl px-5 pt-6 min-h-[70vh] transition-opacity duration-250 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+
+        {/* Question card */}
         <div className="card mb-5">
           <div className="flex items-start gap-3">
             <div className="bg-blue-500 text-white text-sm font-bold px-2.5 py-1 rounded-lg flex-shrink-0">
               Q{currentIndex + 1}
             </div>
-            <p className="text-lg font-medium text-slate-700 leading-relaxed">
+            <p className="text-base font-medium text-slate-700 leading-relaxed">
               {currentQuestion?.question}
             </p>
           </div>
         </div>
 
-        {/* Options (for choice type) */}
+        {/* Choice options */}
         {currentQuestion?.type === 'choice' && currentQuestion.options && (
           <div className="space-y-3 mb-5">
             {currentQuestion.options.map((option, idx) => {
               let optionStyle = 'bg-white border-2 border-slate-200 text-slate-700'
-              
+              let letterStyle = 'bg-slate-100 text-slate-500'
+
               if (showFeedback) {
                 if (option === currentQuestion.answer) {
                   optionStyle = 'bg-green-500 border-2 border-green-500 text-white'
+                  letterStyle = 'bg-white/20 text-white'
                 } else if (option === selectedAnswer && !isCorrect) {
                   optionStyle = 'bg-red-500 border-2 border-red-500 text-white animate-shake'
+                  letterStyle = 'bg-white/20 text-white'
                 } else {
-                  optionStyle = 'bg-slate-100 border-2 border-slate-200 text-slate-400'
+                  optionStyle = 'bg-slate-100 border-2 border-slate-100 text-slate-400'
+                  letterStyle = 'bg-slate-200 text-slate-400'
                 }
               } else if (selectedAnswer === option) {
                 optionStyle = 'bg-blue-500 border-2 border-blue-500 text-white shadow-md'
+                letterStyle = 'bg-white/20 text-white'
               }
 
-              const letters = ['A', 'B', 'C', 'D']
-              
               return (
                 <button
                   key={idx}
                   onClick={() => handleOptionSelect(option)}
                   disabled={showFeedback}
-                  className={`w-full p-4 rounded-2xl text-left flex items-center gap-3 transition-all duration-200 active:scale-98 ${optionStyle}`}
+                  className={`w-full p-4 rounded-2xl text-left flex items-center gap-3 transition-all duration-200 active:scale-98 min-h-[56px] ${optionStyle}`}
                 >
-                  <span className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm flex-shrink-0 ${
-                    showFeedback && option === currentQuestion.answer ? 'bg-white/20' :
-                    selectedAnswer === option ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {letters[idx]}
+                  <span className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm flex-shrink-0 transition-all ${letterStyle}`}>
+                    {OPTION_LETTERS[idx]}
                   </span>
-                  <span className="font-medium">{option}</span>
+                  <span className="font-medium text-sm leading-snug">{option}</span>
                 </button>
               )
             })}
@@ -430,7 +514,7 @@ function PracticeContent() {
               onChange={e => setFillAnswer(e.target.value)}
               disabled={showFeedback}
               placeholder="在这里输入答案..."
-              className={`w-full p-4 rounded-2xl text-lg border-2 focus:outline-none transition-all ${
+              className={`w-full p-4 rounded-2xl text-lg border-2 focus:outline-none transition-all min-h-[56px] ${
                 showFeedback
                   ? isCorrect
                     ? 'border-green-400 bg-green-50 text-green-700'
@@ -441,24 +525,25 @@ function PracticeContent() {
           </div>
         )}
 
-        {/* Feedback */}
+        {/* Feedback panel */}
         {showFeedback && (
           <div className={`card mb-5 border-2 animate-bounce-in ${
             isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
           }`}>
             <div className="flex items-start gap-3">
               <div className="text-2xl">{isCorrect ? '🎉' : '💡'}</div>
-              <div>
+              <div className="flex-1">
                 <p className={`font-bold mb-1 ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
-                  {isCorrect ? '答对了！+1 积分 ⭐' : '答错了，别灰心！'}
+                  {isCorrect ? '回答正确！加油冲！⭐' : '答错了，看看解析吧'}
                 </p>
                 {!isCorrect && (
                   <p className="text-sm text-slate-600 mb-1">
-                    正确答案：<span className="font-bold text-green-600">{currentQuestion?.answer}</span>
+                    正确答案：
+                    <span className="font-bold text-green-600">{currentQuestion?.answer}</span>
                   </p>
                 )}
                 {currentQuestion?.explanation && (
-                  <p className="text-sm text-slate-500">{currentQuestion.explanation}</p>
+                  <p className="text-sm text-slate-500 leading-relaxed">{currentQuestion.explanation}</p>
                 )}
               </div>
             </div>
@@ -470,7 +555,7 @@ function PracticeContent() {
           <button
             onClick={handleConfirm}
             disabled={!selectedAnswer && !fillAnswer}
-            className={`w-full py-5 rounded-2xl font-bold text-lg transition-all ${
+            className={`w-full py-5 rounded-2xl font-bold text-lg transition-all min-h-[44px] ${
               selectedAnswer || fillAnswer
                 ? 'btn-primary'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -481,7 +566,7 @@ function PracticeContent() {
         ) : (
           <button
             onClick={handleNext}
-            className="btn-accent w-full py-5 text-lg"
+            className="btn-accent w-full py-5 text-lg min-h-[44px]"
           >
             {currentIndex < questions.length - 1 ? '下一题 →' : '查看结果 🎯'}
           </button>

@@ -3,52 +3,41 @@ import { prisma } from '@/lib/prisma'
 
 const DEMO_USER_ID = 'user-demo-001'
 
-// Get the next mistake to practice (prioritize due for review, then new, then practicing)
+// GET /api/practice/next → 获取下一道到期复习的题目
 export async function GET() {
   try {
     const now = new Date()
-    
-    // Priority 1: Due for review
-    const reviewing = await prisma.mistake.findFirst({
+
+    const nextMistake = await prisma.mistake.findFirst({
       where: {
         userId: DEMO_USER_ID,
-        status: { in: ['REVIEWING_1', 'REVIEWING_2'] },
-        nextReviewAt: { lte: now },
+        status: { notIn: ['MASTERED'] },
+        OR: [
+          { status: 'NEW' },
+          { status: 'PRACTICING' },
+          { nextReviewAt: null },
+          { nextReviewAt: { lte: now } },
+        ],
       },
-      orderBy: { nextReviewAt: 'asc' },
+      orderBy: [
+        // 优先：到期的复习题
+        { nextReviewAt: 'asc' },
+        // 其次：最老的新题
+        { createdAt: 'asc' },
+      ],
     })
-    
-    if (reviewing) {
-      return NextResponse.json({ mistake: reviewing, reason: '到期复习' })
+
+    if (!nextMistake) {
+      return NextResponse.json({
+        found: false,
+        message: '暂无待练习题目，休息一下或上传新题吧！',
+      })
     }
-    
-    // Priority 2: NEW
-    const newMistake = await prisma.mistake.findFirst({
-      where: {
-        userId: DEMO_USER_ID,
-        status: 'NEW',
-      },
-      orderBy: { createdAt: 'desc' },
+
+    return NextResponse.json({
+      found: true,
+      mistake: nextMistake,
     })
-    
-    if (newMistake) {
-      return NextResponse.json({ mistake: newMistake, reason: '新题' })
-    }
-    
-    // Priority 3: PRACTICING
-    const practicing = await prisma.mistake.findFirst({
-      where: {
-        userId: DEMO_USER_ID,
-        status: 'PRACTICING',
-      },
-      orderBy: { updatedAt: 'asc' },
-    })
-    
-    if (practicing) {
-      return NextResponse.json({ mistake: practicing, reason: '练习中' })
-    }
-    
-    return NextResponse.json({ mistake: null, reason: '全部完成' })
   } catch (error) {
     console.error('GET /api/practice/next error:', error)
     return NextResponse.json({ error: 'Failed to get next practice' }, { status: 500 })

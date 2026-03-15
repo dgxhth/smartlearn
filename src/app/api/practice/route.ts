@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { generateMockQuestions } from '@/lib/mockAI'
+import { generateQuestionsWithFallback } from '@/lib/geminiService'
 import { calculateNextState } from '@/lib/spacedRepetition'
 import { MistakeStatus } from '@/lib/types'
 
 const DEMO_USER_ID = 'user-demo-001'
 
-// GET /api/practice?mistakeId=xxx → 获取题目
+// GET /api/practice?mistakeId=xxx → 获取/生成题目
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -24,8 +24,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Mistake not found' }, { status: 404 })
     }
 
-    // 生成练习题
-    const questions = generateMockQuestions(mistake.subject, mistake.knowledgePoint)
+    // 使用 Gemini 生成题目（含降级）
+    const questions = await generateQuestionsWithFallback(
+      mistake.subject,
+      mistake.knowledgePoint,
+      mistake.content
+    )
 
     return NextResponse.json({
       mistake,
@@ -41,7 +45,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { mistakeId, questions, answers } = body
+    const { mistakeId, questions, answers, userId } = body
+
+    const actualUserId = userId || DEMO_USER_ID
 
     const mistake = await prisma.mistake.findUnique({
       where: { id: mistakeId },
@@ -78,7 +84,7 @@ export async function POST(request: Request) {
     // 保存练习记录
     const practice = await prisma.practice.create({
       data: {
-        userId: DEMO_USER_ID,
+        userId: actualUserId,
         mistakeId,
         questions: JSON.stringify(questions),
         answers: JSON.stringify(answers),
@@ -98,9 +104,9 @@ export async function POST(request: Request) {
       },
     })
 
-    // 更新用户积分
+    // 更新用户积分和学习时间
     await prisma.user.update({
-      where: { id: DEMO_USER_ID },
+      where: { id: actualUserId },
       data: {
         totalPoints: { increment: srResult.pointsEarned },
         lastStudyAt: new Date(),

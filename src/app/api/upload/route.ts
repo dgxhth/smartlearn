@@ -1,30 +1,42 @@
 import { NextResponse } from 'next/server'
-import { mockImageRecognition } from '@/lib/mockAI'
+import { recognizeImageWithFallback } from '@/lib/geminiService'
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
     const file = formData.get('image') as File | null
     const subject = formData.get('subject') as string | null
+    const useMock = formData.get('useMock') === 'true'
 
-    // 模拟AI识别延迟
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // Mock AI识别结果
-    const result = mockImageRecognition(subject || undefined)
-
-    // 如果有文件，可以保存（MVP阶段直接返回mock结果）
+    let imageBase64: string | null = null
+    let mimeType = 'image/jpeg'
     let imageUrl: string | null = null
-    if (file) {
-      // 实际项目中这里应该上传到OSS/S3
-      // MVP阶段使用数据URL或跳过
-      imageUrl = '/mock-image.jpg'
+
+    // 处理真实图片文件
+    if (file && file.size > 0) {
+      const buffer = await file.arrayBuffer()
+      imageBase64 = Buffer.from(buffer).toString('base64')
+      mimeType = file.type || 'image/jpeg'
+      // 用 base64 data URL 作为预览（实际可上传到 OSS）
+      imageUrl = `data:${mimeType};base64,${imageBase64}`
     }
+
+    // useMock 模式不传图片（让 geminiService 内部降级到 mock）
+    const base64ToUse = useMock ? null : imageBase64
+
+    const result = await recognizeImageWithFallback(
+      base64ToUse,
+      mimeType,
+      subject || undefined
+    )
 
     return NextResponse.json({
       success: true,
       recognized: {
-        ...result,
+        subject: result.subject,
+        content: result.content,
+        knowledgePoint: result.knowledgePoint,
+        confidence: result.confidence,
         imageUrl,
       },
     })

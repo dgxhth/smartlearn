@@ -9,7 +9,9 @@ interface Stats {
   masteredCount: number
   practicingCount: number
   todayPractices: number
+  dueForReviewCount: number
   subjectStats: Record<string, { total: number; mastered: number }>
+  statusStats: Record<string, number>
 }
 
 interface UserData {
@@ -35,11 +37,19 @@ const SUBJECT_COLORS: Record<string, string> = {
 
 const ACHIEVEMENTS = [
   { id: 1, title: '初学者', desc: '上传第一道错题', emoji: '🌱', threshold: 1, type: 'mistakes' },
-  { id: 2, title: '努力学习', desc: '积累10道错题', emoji: '📚', threshold: 10, type: 'mistakes' },
+  { id: 2, title: '勤奋好学', desc: '积累10道错题', emoji: '📚', threshold: 10, type: 'mistakes' },
   { id: 3, title: '小达人', desc: '掌握5道错题', emoji: '⭐', threshold: 5, type: 'mastered' },
   { id: 4, title: '学霸', desc: '掌握10道错题', emoji: '🏆', threshold: 10, type: 'mastered' },
   { id: 5, title: '积分先锋', desc: '获得100积分', emoji: '💎', threshold: 100, type: 'points' },
   { id: 6, title: '坚持不懈', desc: '连续学习3天', emoji: '🔥', threshold: 3, type: 'streak' },
+]
+
+const STATUS_INFO = [
+  { label: '新题', key: 'NEW', color: 'bg-blue-400', emoji: '🆕' },
+  { label: '练习中', key: 'PRACTICING', color: 'bg-orange-400', emoji: '💪' },
+  { label: '复习1', key: 'REVIEWING_1', color: 'bg-purple-400', emoji: '🔄' },
+  { label: '复习2', key: 'REVIEWING_2', color: 'bg-yellow-400', emoji: '🔁' },
+  { label: '已掌握', key: 'MASTERED', color: 'bg-green-400', emoji: '✅' },
 ]
 
 export default function ReportPage() {
@@ -81,8 +91,11 @@ export default function ReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-4xl animate-bounce">📊</div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="text-5xl animate-bounce mb-4">📊</div>
+          <p className="text-slate-400">加载报告中...</p>
+        </div>
       </div>
     )
   }
@@ -95,12 +108,14 @@ export default function ReportPage() {
           <BarChart3 size={22} />
           <h1 className="text-xl font-bold">学习报告</h1>
         </div>
-        <p className="text-green-100 text-sm">{userData?.name} · {userData?.grade}</p>
+        <p className="text-green-100 text-sm">
+          {userData?.avatar} {userData?.name} · {userData?.grade}
+        </p>
       </div>
 
       <div className="px-5 py-5 pb-24 space-y-5">
 
-        {/* Overall stats */}
+        {/* Overall stats grid */}
         <div className="grid grid-cols-2 gap-3">
           <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
             <div className="flex items-center gap-2 mb-2">
@@ -176,46 +191,35 @@ export default function ReportPage() {
           )}
         </div>
 
-        {/* Status breakdown */}
-        <div className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <Target size={18} className="text-orange-500" />
-            <h2 className="font-bold text-slate-700">错题状态分布</h2>
-          </div>
-          <div className="space-y-3">
-            {[
-              { label: '新题', key: 'NEW', color: 'bg-blue-400', emoji: '🆕' },
-              { label: '练习中', key: 'PRACTICING', color: 'bg-orange-400', emoji: '💪' },
-              { label: '复习阶段1', key: 'REVIEWING_1', color: 'bg-purple-400', emoji: '🔄' },
-              { label: '复习阶段2', key: 'REVIEWING_2', color: 'bg-yellow-400', emoji: '🔄' },
-              { label: '已掌握', key: 'MASTERED', color: 'bg-green-400', emoji: '✅' },
-            ].map(({ label, key, color, emoji }) => {
-              // Count mistakes per status (we'd need to fetch this from API)
-              // For now, just show mastered vs total
-              const isMastered = key === 'MASTERED'
-              const count = isMastered ? (stats?.masteredCount || 0) :
-                key === 'PRACTICING' ? (stats?.practicingCount || 0) : 0
-              const total = stats?.totalMistakes || 1
-              const width = total > 0 ? (count / total) * 100 : 0
-
-              if (count === 0 && !isMastered) return null
-
-              return (
-                <div key={key} className="flex items-center gap-3">
-                  <span className="text-lg w-6">{emoji}</span>
-                  <span className="text-sm text-slate-600 w-20 flex-shrink-0">{label}</span>
-                  <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`${color} h-full rounded-full transition-all duration-1000`}
-                      style={{ width: `${width}%` }}
-                    />
+        {/* Status breakdown - 修复：使用 statusStats */}
+        {stats && stats.totalMistakes > 0 && (
+          <div className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <Target size={18} className="text-orange-500" />
+              <h2 className="font-bold text-slate-700">错题状态分布</h2>
+            </div>
+            <div className="space-y-3">
+              {STATUS_INFO.map(({ label, key, color, emoji }) => {
+                const count = stats.statusStats?.[key] || 0
+                const width = stats.totalMistakes > 0 ? (count / stats.totalMistakes) * 100 : 0
+                if (count === 0) return null
+                return (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="text-lg w-6">{emoji}</span>
+                    <span className="text-sm text-slate-600 w-16 flex-shrink-0">{label}</span>
+                    <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className={`${color} h-full rounded-full transition-all duration-1000`}
+                        style={{ width: `${width}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-bold text-slate-700 w-6 text-right">{count}</span>
                   </div>
-                  <span className="text-sm font-bold text-slate-700 w-8 text-right">{count}</span>
-                </div>
-              )
-            }).filter(Boolean)}
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Achievements */}
         <div className="card">
@@ -235,35 +239,35 @@ export default function ReportPage() {
                       : 'bg-slate-100 opacity-50'
                   }`}
                 >
-                  <div className={`text-3xl mb-1 ${unlocked ? '' : 'grayscale'}`}>
+                  <div className="text-3xl mb-1">
                     {unlocked ? achievement.emoji : '🔒'}
                   </div>
                   <div className={`text-xs font-bold ${unlocked ? 'text-orange-700' : 'text-slate-500'}`}>
                     {achievement.title}
                   </div>
-                  <div className="text-xs text-slate-400 mt-0.5">{achievement.desc}</div>
+                  <div className="text-xs text-slate-400 mt-0.5 leading-tight">{achievement.desc}</div>
                 </div>
               )
             })}
           </div>
         </div>
 
-        {/* Spaced repetition info */}
+        {/* Spaced repetition info card */}
         <div className="card bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xl">🧠</span>
             <h2 className="font-bold text-slate-700">间隔重复学习法</h2>
           </div>
           <p className="text-sm text-slate-600 leading-relaxed mb-3">
-            SmartLearn 使用科学的间隔重复算法，帮助你最高效地记忆知识：
+            基于科学记忆曲线，SmartLearn 自动安排最优复习时机：
           </p>
           <div className="space-y-2">
             {[
-              { step: '1', desc: '新题 → 立即练习', color: 'bg-blue-500' },
-              { step: '2', desc: '第1次全对 → 1天后复习', color: 'bg-purple-500' },
-              { step: '3', desc: '第2次全对 → 3天后复习', color: 'bg-yellow-500' },
-              { step: '4', desc: '第3次全对 → 完全掌握！', color: 'bg-green-500' },
-              { step: '❌', desc: '任何阶段答错 → 重新练习', color: 'bg-red-400' },
+              { step: '1', desc: '新题 → 立即练习 (NEW)', color: 'bg-blue-500' },
+              { step: '2', desc: '第1次全对 → 1天后复习 (REVIEWING_1)', color: 'bg-purple-500' },
+              { step: '3', desc: '第2次全对 → 3天后复习 (REVIEWING_2)', color: 'bg-yellow-500' },
+              { step: '4', desc: '第3次全对 → 完全掌握 (MASTERED)!', color: 'bg-green-500' },
+              { step: '❌', desc: '任何阶段答错 → 重置到练习中', color: 'bg-red-400' },
             ].map(({ step, desc, color }) => (
               <div key={step} className="flex items-center gap-3">
                 <div className={`${color} w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
@@ -272,6 +276,11 @@ export default function ReportPage() {
                 <span className="text-sm text-slate-600">{desc}</span>
               </div>
             ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-blue-100">
+            <p className="text-xs text-slate-500">
+              💡 连续3次全对可直接跳过中间步骤，快速到达MASTERED状态。
+            </p>
           </div>
         </div>
       </div>

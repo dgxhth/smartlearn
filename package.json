@@ -10,6 +10,7 @@
     "db:seed": "npx ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.22.0",
     "framer-motion": "^12.36.0",
     "lucide-react": "^0.577.0",
