@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
 import {
   Camera, Upload, ChevronLeft, Sparkles, CheckCircle, AlertCircle,
-  Info
+  Info, PenLine
 } from 'lucide-react'
 
-type Step = 'select' | 'preview' | 'recognizing' | 'result' | 'saving'
+type Step = 'select' | 'preview' | 'recognizing' | 'result' | 'saving' | 'manual'
 
 interface RecognizedData {
   subject: string
@@ -35,6 +35,9 @@ export default function UploadPage() {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [recognizeProgress, setRecognizeProgress] = useState(0)
+  const [manualSubject, setManualSubject] = useState('')
+  const [manualKnowledge, setManualKnowledge] = useState('')
+  const [manualContent, setManualContent] = useState('')
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -150,7 +153,51 @@ export default function UploadPage() {
     setError('')
     setSaved(false)
     setRecognizeProgress(0)
+    setManualSubject('')
+    setManualKnowledge('')
+    setManualContent('')
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleManualSave() {
+    if (!manualKnowledge.trim()) {
+      setError('知识点不能为空')
+      return
+    }
+    if (!manualSubject) {
+      setError('请选择科目')
+      return
+    }
+    setStep('saving')
+    setSaved(false)
+    setError('')
+
+    try {
+      const content = manualContent.trim() || `练习：${manualKnowledge.trim()}`
+      const res = await fetch('/api/mistakes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: manualSubject,
+          content,
+          knowledgePoint: manualKnowledge.trim(),
+          imageUrl: null,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      setSaved(true)
+
+      setTimeout(() => {
+        router.push(`/practice?mistakeId=${data.mistake.id}`)
+      }, 1200)
+    } catch (err) {
+      console.error('Manual save error:', err)
+      setError('保存失败，请重试')
+      setStep('manual')
+    }
   }
 
   return (
@@ -168,6 +215,7 @@ export default function UploadPage() {
         </div>
         <p className="text-blue-100 text-sm ml-11">
           {step === 'select' && '拍照或选图，AI自动识别题目'}
+          {step === 'manual' && '输入知识点，AI自动生成练习题'}
           {step === 'preview' && '确认图片，点击开始识别'}
           {step === 'recognizing' && 'AI正在分析题目...'}
           {step === 'result' && '识别完成，请确认内容'}
@@ -263,13 +311,22 @@ export default function UploadPage() {
             {/* Demo mode */}
             <div className="card text-center">
               <p className="text-slate-400 text-sm mb-3">没有题目图片？</p>
-              <button
-                onClick={handleDemoMode}
-                className="btn-accent w-full flex items-center justify-center gap-2"
-              >
-                <Sparkles size={20} />
-                🤖 AI演示模式（无需图片）
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => { setStep('manual'); setError('') }}
+                  className="btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  <PenLine size={20} />
+                  ✍️ 手动输入知识点
+                </button>
+                <button
+                  onClick={handleDemoMode}
+                  className="w-full py-3 rounded-2xl font-medium bg-slate-100 text-slate-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Sparkles size={18} />
+                  🤖 AI演示模式
+                </button>
+              </div>
             </div>
 
             <input
@@ -279,6 +336,82 @@ export default function UploadPage() {
               className="hidden"
               onChange={handleFileSelect}
             />
+          </div>
+        )}
+
+        {/* ======= Step: Manual Input ======= */}
+        {step === 'manual' && (
+          <div className="space-y-5">
+            {/* Subject selector */}
+            <div className="card">
+              <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                📚 选择科目 <span className="text-red-500 text-sm">*</span>
+              </h3>
+              <div className="flex gap-3">
+                {SUBJECTS.map(subj => (
+                  <button
+                    key={subj}
+                    onClick={() => setManualSubject(manualSubject === subj ? '' : subj)}
+                    className={`flex-1 py-3 rounded-2xl font-medium transition-all active:scale-95 ${
+                      manualSubject === subj
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {SUBJECT_EMOJIS[subj]} {subj}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Knowledge point input */}
+            <div className="card">
+              <label className="text-sm font-bold text-slate-500 block mb-2">
+                🎯 知识点 <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={manualKnowledge}
+                onChange={e => setManualKnowledge(e.target.value)}
+                className="w-full p-4 bg-slate-50 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 text-base"
+                placeholder="例如：一元一次方程、一般过去时、比喻修辞..."
+              />
+              <p className="text-xs text-slate-400 mt-2">输入你想练习的知识点，AI会自动生成5道相关练习题</p>
+            </div>
+
+            {/* Optional: specific question content */}
+            <div className="card">
+              <label className="text-sm font-bold text-slate-500 block mb-2">
+                📝 题目内容 <span className="text-slate-400 font-normal">（选填）</span>
+              </label>
+              <textarea
+                value={manualContent}
+                onChange={e => setManualContent(e.target.value)}
+                className="w-full p-4 bg-slate-50 rounded-xl text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 text-sm leading-relaxed"
+                rows={4}
+                placeholder="可以输入具体的错题内容，AI会根据这道题生成类似的练习题&#10;&#10;不填的话，AI会根据知识点自动出题"
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl p-4 text-red-600">
+                <AlertCircle size={18} />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={handleReset} className="flex-1 py-4 rounded-2xl font-bold bg-slate-200 text-slate-600 active:scale-95 min-h-[44px]">
+                返回
+              </button>
+              <button
+                onClick={handleManualSave}
+                className="btn-primary flex items-center gap-2 justify-center min-h-[44px]"
+                style={{ flex: 2 }}
+              >
+                <Sparkles size={20} />
+                生成练习题
+              </button>
+            </div>
           </div>
         )}
 
