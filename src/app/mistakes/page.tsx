@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
-import { BookOpen, Filter, Search, ChevronRight, Plus, Calendar } from 'lucide-react'
+import { BookOpen, Filter, Search, ChevronRight, Plus, Calendar, Trash2, RefreshCw } from 'lucide-react'
 
 interface Mistake {
   id: string
@@ -88,6 +88,8 @@ export default function MistakesPage() {
   const [statusFilter, setStatusFilter] = useState('全部')
   const [searchText, setSearchText] = useState('')
   const [showStatusFilter, setShowStatusFilter] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchMistakes()
@@ -120,6 +122,33 @@ export default function MistakesPage() {
       console.error('Failed to fetch mistakes:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDeleteMistake(id: string) {
+    try {
+      const res = await fetch(`/api/mistakes/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Delete failed')
+      setMistakes(prev => prev.filter(m => m.id !== id))
+      setDeleteConfirmId(null)
+    } catch (err) {
+      console.error('Failed to delete mistake:', err)
+      alert('删除失败，请重试')
+    }
+  }
+
+  async function handleRegeneratePractice(id: string) {
+    setRegeneratingId(id)
+    try {
+      const res = await fetch(`/api/practice?mistakeId=${id}&regenerate=true`)
+      if (!res.ok) throw new Error('Regenerate failed')
+      // 刷新列表以更新cachedQuestions状态
+      await fetchMistakes()
+    } catch (err) {
+      console.error('Failed to regenerate:', err)
+      alert('重新生成失败，请重试')
+    } finally {
+      setRegeneratingId(null)
     }
   }
 
@@ -299,6 +328,29 @@ export default function MistakesPage() {
                           复习时间：{new Date(mistake.nextReviewAt).toLocaleDateString('zh-CN')}
                         </p>
                       )}
+
+                      {/* Action row: delete + regenerate */}
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                        <button
+                          onClick={(e) => { e.preventDefault(); setDeleteConfirmId(mistake.id) }}
+                          className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50 active:scale-95 min-h-[28px]"
+                        >
+                          <Trash2 size={12} />
+                          删除
+                        </button>
+                        <button
+                          onClick={(e) => { e.preventDefault(); handleRegeneratePractice(mistake.id) }}
+                          disabled={regeneratingId === mistake.id}
+                          className={`flex items-center gap-1 text-xs transition-colors px-2 py-1 rounded-lg active:scale-95 min-h-[28px] ${
+                            regeneratingId === mistake.id
+                              ? 'text-blue-400 bg-blue-50 cursor-wait'
+                              : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50'
+                          }`}
+                        >
+                          <RefreshCw size={12} className={regeneratingId === mistake.id ? 'animate-spin' : ''} />
+                          {regeneratingId === mistake.id ? '生成中...' : '重新生成练习'}
+                        </button>
+                      </div>
                     </div>
 
                     {/* Action button */}
@@ -320,6 +372,33 @@ export default function MistakesPage() {
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-8">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl">
+            <div className="text-center mb-4">
+              <div className="text-4xl mb-2">🗑️</div>
+              <h3 className="text-lg font-bold text-slate-700">确定删除？</h3>
+              <p className="text-sm text-slate-500 mt-1">删除后该错题及所有练习记录将永久移除，无法恢复</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 py-3 rounded-2xl font-bold bg-slate-200 text-slate-600 active:scale-95 transition-all min-h-[44px]"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleDeleteMistake(deleteConfirmId)}
+                className="flex-1 py-3 rounded-2xl font-bold bg-red-500 text-white active:scale-95 transition-all min-h-[44px]"
+              >
+                确定删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>

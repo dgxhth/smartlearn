@@ -45,3 +45,24 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update mistake' }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // 先删除关联的练习记录
+    await prisma.practice.deleteMany({
+      where: { mistakeId: params.id },
+    })
+    // 再删除错题
+    await prisma.mistake.delete({
+      where: { id: params.id },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('DELETE /api/mistakes/[id] error:', error)
+    return NextResponse.json({ error: 'Failed to delete mistake' }, { status: 500 })
+  }
+}
