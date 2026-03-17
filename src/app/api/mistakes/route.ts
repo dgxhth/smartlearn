@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
 
 const DEMO_USER_ID = 'user-demo-001'
 
@@ -20,31 +19,7 @@ async function ensureUser() {
       })
     }
   } catch (e) {
-    // 表可能不存在，尝试推schema
-    if (e instanceof Prisma.PrismaClientKnownRequestError || 
-        (e instanceof Error && e.message.includes('table'))) {
-      const { execSync } = await import('child_process')
-      const dbUrl = process.env.VERCEL ? 'file:/tmp/smartlearn.db' : (process.env.DATABASE_URL || 'file:./dev.db')
-      try {
-        execSync('npx prisma db push --skip-generate --accept-data-loss', {
-          env: { ...process.env, DATABASE_URL: dbUrl },
-          cwd: process.cwd(),
-          timeout: 15000,
-        })
-        await prisma.user.create({
-          data: {
-            id: DEMO_USER_ID,
-            name: '小明',
-            grade: '初一',
-            avatar: '🧑🎓',
-            totalPoints: 0,
-            streak: 0,
-          },
-        })
-      } catch (pushErr) {
-        console.error('DB push failed:', pushErr)
-      }
-    }
+    console.error('ensureUser error:', e)
   }
 }
 
