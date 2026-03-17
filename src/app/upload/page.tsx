@@ -173,14 +173,21 @@ export default function UploadPage() {
     setError('')
 
     try {
-      const content = manualContent.trim() || `练习：${manualKnowledge.trim()}`
+      // 把多行/逗号分隔的知识点合并为"、"连接的字符串
+      const knowledgePoints = manualKnowledge
+        .split(/[\n,，]/)
+        .map(k => k.trim())
+        .filter(k => k.length > 0)
+      const combinedKnowledge = knowledgePoints.join('、')
+
+      const content = manualContent.trim() || `练习：${combinedKnowledge}`
       const res = await fetch('/api/mistakes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subject: manualSubject,
           content,
-          knowledgePoint: manualKnowledge.trim(),
+          knowledgePoint: combinedKnowledge,
           imageUrl: null,
         }),
       })
@@ -369,13 +376,14 @@ export default function UploadPage() {
               <label className="text-sm font-bold text-slate-500 block mb-2">
                 🎯 知识点 <span className="text-red-500">*</span>
               </label>
-              <input
+              <textarea
                 value={manualKnowledge}
                 onChange={e => setManualKnowledge(e.target.value)}
-                className="w-full p-4 bg-slate-50 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 text-base"
-                placeholder="例如：一元一次方程、一般过去时、比喻修辞..."
+                className="w-full p-4 bg-slate-50 rounded-xl text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 text-base leading-relaxed"
+                rows={4}
+                placeholder={`每行输入一个知识点，例如：\n一元一次方程\n二元一次方程组\n不等式`}
               />
-              <p className="text-xs text-slate-400 mt-2">输入你想练习的知识点，AI会自动生成5道相关练习题</p>
+              <p className="text-xs text-slate-400 mt-2">每行一个知识点，或用逗号/顿号分隔。有多个知识点时AI会均匀出题，3个以上知识点自动增加到7道题</p>
             </div>
 
             {/* Optional: specific question content */}

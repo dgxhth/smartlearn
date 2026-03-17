@@ -34,6 +34,7 @@ model Mistake {
   status         String    @default("NEW") // NEW/PRACTICING/REVIEWING_1/REVIEWING_2/MASTERED
   correctStreak  Int       @default(0) // 连续全对次数
   nextReviewAt   DateTime? // 下次复习时间
+  cachedQuestions String?  // JSON: 缓存的AI生成题目
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   practices      Practice[]

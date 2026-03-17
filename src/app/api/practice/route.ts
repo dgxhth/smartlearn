@@ -6,11 +6,12 @@ import { MistakeStatus } from '@/lib/types'
 
 const DEMO_USER_ID = 'user-demo-001'
 
-// GET /api/practice?mistakeId=xxx → 获取/生成题目
+// GET /api/practice?mistakeId=xxx&regenerate=true → 获取/生成题目
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const mistakeId = searchParams.get('mistakeId')
+    const regenerate = searchParams.get('regenerate')
 
     if (!mistakeId) {
       return NextResponse.json({ error: 'mistakeId is required' }, { status: 400 })
@@ -24,6 +25,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Mistake not found' }, { status: 404 })
     }
 
+    // 如果有缓存且不强制重新生成，直接返回缓存题目
+    if (regenerate !== 'true' && mistake.cachedQuestions) {
+      try {
+        const questions = JSON.parse(mistake.cachedQuestions)
+        return NextResponse.json({
+          mistake,
+          questions,
+          fromCache: true,
+        })
+      } catch {
+        // 缓存数据损坏，降级到重新生成
+        console.warn('Failed to parse cachedQuestions, regenerating...')
+      }
+    }
+
     // 使用 Gemini 生成题目（含降级）
     const questions = await generateQuestionsWithFallback(
       mistake.subject,
@@ -31,9 +47,16 @@ export async function GET(request: Request) {
       mistake.content
     )
 
+    // 保存题目到缓存
+    await prisma.mistake.update({
+      where: { id: mistakeId },
+      data: { cachedQuestions: JSON.stringify(questions) },
+    })
+
     return NextResponse.json({
       mistake,
       questions,
+      fromCache: false,
     })
   } catch (error) {
     console.error('GET /api/practice error:', error)
@@ -94,13 +117,14 @@ export async function POST(request: Request) {
       },
     })
 
-    // 更新错题状态
+    // 更新错题状态，同时清除缓存（练习已完成，下次重新生成）
     await prisma.mistake.update({
       where: { id: mistakeId },
       data: {
         status: srResult.newStatus,
         correctStreak: srResult.newStreak,
         nextReviewAt: srResult.nextReviewAt,
+        cachedQuestions: null, // 做完了就清除缓存，下次重新生成
       },
     })
 

@@ -14,6 +14,7 @@ interface Mistake {
   correctStreak: number
   nextReviewAt: string | null
   createdAt: string
+  cachedQuestions: string | null
 }
 
 const SUBJECT_EMOJIS: Record<string, string> = {
@@ -265,6 +266,13 @@ export default function MistakesPage() {
                         <span className="text-xs text-slate-400 truncate">{mistake.knowledgePoint}</span>
                         {due && mistake.status !== 'MASTERED' && (
                           <span className="text-xs text-orange-500 font-medium">🔔 待练</span>
+                        )}
+                        {mistake.cachedQuestions && mistake.status !== 'MASTERED' && (
+                          <Link href={`/practice?mistakeId=${mistake.id}`}>
+                            <span className="text-xs bg-teal-100 text-teal-700 border border-teal-200 rounded-full px-2 py-0.5 font-medium cursor-pointer hover:bg-teal-200 transition-colors">
+                              📝 有未完成练习
+                            </span>
+                          </Link>
                         )}
                       </div>
                       <p className="text-sm text-slate-700 line-clamp-2 mb-2">{mistake.content}</p>

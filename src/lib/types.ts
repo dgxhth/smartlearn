@@ -2,7 +2,7 @@ export type MistakeStatus = 'NEW' | 'PRACTICING' | 'REVIEWING_1' | 'REVIEWING_2'
 
 export interface Question {
   id: number
-  type: 'choice' | 'fill'
+  type: 'choice' | 'fill' | 'truefalse'
   question: string
   options?: string[]
   answer: string

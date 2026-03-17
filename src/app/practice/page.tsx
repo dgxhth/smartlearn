@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
-import { ChevronLeft, Star, Zap, RotateCcw, Clock, Trophy } from 'lucide-react'
+import { ChevronLeft, Star, Zap, RotateCcw, Clock, Trophy, Trash2, RefreshCw } from 'lucide-react'
 
 interface Question {
   id: number
-  type: 'choice' | 'fill'
+  type: 'choice' | 'fill' | 'truefalse'
   question: string
   options?: string[]
   answer: string
@@ -78,6 +78,9 @@ function PracticeContent() {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [startTime] = useState(Date.now())
   const [elapsed, setElapsed] = useState(0)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
 
   // 计时器
   useEffect(() => {
@@ -103,6 +106,30 @@ function PracticeContent() {
       console.error('Failed to fetch practice:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleRegenerate() {
+    setShowRegenerateConfirm(false)
+    setRegenerating(true)
+    try {
+      const res = await fetch(`/api/practice?mistakeId=${mistakeId}&regenerate=true`)
+      const data = await res.json()
+      setMistake(data.mistake)
+      setQuestions(data.questions)
+      // 重置所有答题状态
+      setCurrentIndex(0)
+      setAnswers([])
+      setSelectedAnswer(null)
+      setFillAnswer('')
+      setShowFeedback(false)
+      setIsCorrect(false)
+      setComboCount(0)
+      setResult(null)
+    } catch (err) {
+      console.error('Failed to regenerate practice:', err)
+    } finally {
+      setRegenerating(false)
     }
   }
 
@@ -151,6 +178,33 @@ function PracticeContent() {
     }, 250)
   }, [currentIndex, questions.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  function handleDeleteQuestion() {
+    const newQuestions = questions.filter((_, idx) => idx !== currentIndex)
+
+    if (newQuestions.length === 0) {
+      // 没有题目了，直接提交现有答案
+      submitPractice()
+      return
+    }
+
+    const nextIndex = currentIndex >= newQuestions.length
+      ? newQuestions.length - 1
+      : currentIndex
+
+    setQuestions(newQuestions)
+    setCurrentIndex(nextIndex)
+    setSelectedAnswer(null)
+    setFillAnswer('')
+    setShowFeedback(false)
+    setIsCorrect(false)
+    setShowDeleteConfirm(false)
+
+    // 如果删的是最后一题，提交结果
+    if (currentIndex >= newQuestions.length) {
+      setTimeout(() => submitPractice(), 100)
+    }
+  }
+
   async function submitPractice() {
     setSubmitting(true)
     setIsTransitioning(false)
@@ -195,12 +249,12 @@ function PracticeContent() {
   }
 
   // =========== 加载状态 ===========
-  if (loading) {
+  if (loading || regenerating) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-500 to-blue-600">
         <div className="text-center text-white space-y-4">
-          <div className="text-6xl animate-bounce">⚡</div>
-          <h2 className="text-xl font-bold">Gemini AI 出题中...</h2>
+          <div className="text-6xl animate-bounce">{regenerating ? '🔄' : '⚡'}</div>
+          <h2 className="text-xl font-bold">{regenerating ? '重新生成题目中...' : 'Gemini AI 出题中...'}</h2>
           <p className="text-blue-200 text-sm">正在为你生成5道个性化练习题</p>
           <div className="flex space-x-2 justify-center mt-4">
             {[0, 1, 2].map(i => (
@@ -457,14 +511,88 @@ function PracticeContent() {
         {/* Question card */}
         <div className="card mb-5">
           <div className="flex items-start gap-3">
-            <div className="bg-blue-500 text-white text-sm font-bold px-2.5 py-1 rounded-lg flex-shrink-0">
-              Q{currentIndex + 1}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="bg-blue-500 text-white text-sm font-bold px-2.5 py-1 rounded-lg">
+                Q{currentIndex + 1}
+              </div>
+              {/* 重新出题按钮 */}
+              <button
+                onClick={() => setShowRegenerateConfirm(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-all active:scale-95"
+                title="重新生成题目"
+              >
+                <RefreshCw size={13} />
+                <span>重新出题</span>
+              </button>
             </div>
-            <p className="text-base font-medium text-slate-700 leading-relaxed">
+            <p className="text-base font-medium text-slate-700 leading-relaxed flex-1">
               {currentQuestion?.question}
             </p>
+            {/* 删除按钮 */}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex-shrink-0 p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all active:scale-95"
+              title="删除这道题"
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
         </div>
+
+        {/* 删除确认对话框 */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-bounce-in">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-3">🗑️</div>
+                <h3 className="text-lg font-bold text-slate-700 mb-2">确定删除这道题？</h3>
+                <p className="text-sm text-slate-500">删除后将跳到下一题，此题不计入得分</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-3 rounded-2xl font-bold bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleDeleteQuestion}
+                  className="flex-1 py-3 rounded-2xl font-bold bg-red-500 text-white active:scale-95 transition-all"
+                >
+                  确认删除
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 重新出题确认对话框 */}
+        {showRegenerateConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-bounce-in">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-3">🔄</div>
+                <h3 className="text-lg font-bold text-slate-700 mb-2">重新生成题目？</h3>
+                <p className="text-sm text-slate-500">重新生成会覆盖当前题目，确定吗？</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRegenerateConfirm(false)}
+                  className="flex-1 py-3 rounded-2xl font-bold bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleRegenerate}
+                  className="flex-1 py-3 rounded-2xl font-bold bg-blue-500 text-white active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={16} />
+                  确认重出
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Choice options */}
         {currentQuestion?.type === 'choice' && currentQuestion.options && (
@@ -525,6 +653,38 @@ function PracticeContent() {
           </div>
         )}
 
+        {/* True/False options */}
+        {currentQuestion?.type === 'truefalse' && (
+          <div className="flex gap-3 mb-5">
+            {['正确', '错误'].map((option) => {
+              let optionStyle = 'bg-white border-2 border-slate-200 text-slate-700'
+
+              if (showFeedback) {
+                if (option === currentQuestion.answer) {
+                  optionStyle = 'bg-green-500 border-2 border-green-500 text-white'
+                } else if (option === selectedAnswer && !isCorrect) {
+                  optionStyle = 'bg-red-500 border-2 border-red-500 text-white animate-shake'
+                } else {
+                  optionStyle = 'bg-slate-100 border-2 border-slate-100 text-slate-400'
+                }
+              } else if (selectedAnswer === option) {
+                optionStyle = 'bg-blue-500 border-2 border-blue-500 text-white shadow-md'
+              }
+
+              return (
+                <button
+                  key={option}
+                  onClick={() => handleOptionSelect(option)}
+                  disabled={showFeedback}
+                  className={`flex-1 py-6 rounded-2xl font-bold text-lg transition-all duration-200 active:scale-95 min-h-[56px] ${optionStyle}`}
+                >
+                  {option === '正确' ? '✅ 正确' : '❌ 错误'}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* Feedback panel */}
         {showFeedback && (
           <div className={`card mb-5 border-2 animate-bounce-in ${
@@ -556,7 +716,7 @@ function PracticeContent() {
             onClick={handleConfirm}
             disabled={!selectedAnswer && !fillAnswer}
             className={`w-full py-5 rounded-2xl font-bold text-lg transition-all min-h-[44px] ${
-              selectedAnswer || fillAnswer
+              (selectedAnswer || fillAnswer)
                 ? 'btn-primary'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
             }`}
