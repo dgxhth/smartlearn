@@ -9,6 +9,7 @@ const mathQuestions: Record<string, Question[]> = {
   '一元一次方程': [
     {
       id: 1,
+      knowledgePoint: '一元一次方程',
       type: 'choice',
       question: '解方程：x + 3 = 7，x 的值是？',
       options: ['x = 3', 'x = 4', 'x = 10', 'x = -4'],
@@ -17,6 +18,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 2,
+      knowledgePoint: '一元一次方程',
       type: 'choice',
       question: '解方程：2x = 10，x 的值是？',
       options: ['x = 2', 'x = 5', 'x = 8', 'x = 20'],
@@ -25,6 +27,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 3,
+      knowledgePoint: '一元一次方程',
       type: 'choice',
       question: '解方程：3x - 6 = 9，x 的值是？',
       options: ['x = 1', 'x = 3', 'x = 5', 'x = 15'],
@@ -33,6 +36,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 4,
+      knowledgePoint: '一元一次方程',
       type: 'choice',
       question: '若 x + 5 = 12，则 2x 等于？',
       options: ['7', '12', '14', '24'],
@@ -41,6 +45,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 5,
+      knowledgePoint: '一元一次方程',
       type: 'choice',
       question: '解方程：4x + 2 = 18，x 的值是？',
       options: ['x = 2', 'x = 4', 'x = 5', 'x = 8'],
@@ -51,6 +56,7 @@ const mathQuestions: Record<string, Question[]> = {
   '幂运算': [
     {
       id: 1,
+      knowledgePoint: '幂运算',
       type: 'choice',
       question: '计算：2³ = ?',
       options: ['6', '8', '9', '12'],
@@ -59,6 +65,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 2,
+      knowledgePoint: '幂运算',
       type: 'choice',
       question: '计算：5² = ?',
       options: ['10', '15', '25', '35'],
@@ -67,6 +74,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 3,
+      knowledgePoint: '幂运算',
       type: 'choice',
       question: '计算：3² + 4² = ?',
       options: ['14', '25', '30', '49'],
@@ -75,6 +83,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 4,
+      knowledgePoint: '幂运算',
       type: 'choice',
       question: '下面哪个等式是正确的？',
       options: ['2² = 4', '3² = 6', '4² = 8', '5² = 10'],
@@ -83,6 +92,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 5,
+      knowledgePoint: '幂运算',
       type: 'choice',
       question: '计算：10² - 6² = ?',
       options: ['4', '16', '64', '100'],
@@ -93,6 +103,7 @@ const mathQuestions: Record<string, Question[]> = {
   '三角形内角和': [
     {
       id: 1,
+      knowledgePoint: '三角形内角和',
       type: 'choice',
       question: '三角形内角和是多少度？',
       options: ['90°', '180°', '270°', '360°'],
@@ -101,6 +112,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 2,
+      knowledgePoint: '三角形内角和',
       type: 'choice',
       question: '一个三角形两个角分别是60°和70°，第三个角是多少？',
       options: ['40°', '50°', '60°', '70°'],
@@ -109,6 +121,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 3,
+      knowledgePoint: '三角形内角和',
       type: 'choice',
       question: '等边三角形每个内角是多少度？',
       options: ['45°', '60°', '90°', '120°'],
@@ -117,6 +130,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 4,
+      knowledgePoint: '三角形内角和',
       type: 'choice',
       question: '直角三角形中，有一个角是90°，另外两个角的和是多少？',
       options: ['45°', '90°', '180°', '270°'],
@@ -125,6 +139,7 @@ const mathQuestions: Record<string, Question[]> = {
     },
     {
       id: 5,
+      knowledgePoint: '三角形内角和',
       type: 'choice',
       question: '三角形最大的内角可以超过多少度？',
       options: ['90°', '120°', '150°', '不超过180°（但必须小于180°）'],
@@ -138,6 +153,7 @@ const englishQuestions: Record<string, Question[]> = {
   '一般现在时': [
     {
       id: 1,
+      knowledgePoint: '一般现在时',
       type: 'choice',
       question: 'She _____ (go) to school every day.',
       options: ['go', 'goes', 'going', 'went'],
@@ -146,6 +162,7 @@ const englishQuestions: Record<string, Question[]> = {
     },
     {
       id: 2,
+      knowledgePoint: '一般现在时',
       type: 'choice',
       question: 'They _____ (play) football on weekends.',
       options: ['plays', 'playing', 'play', 'played'],
@@ -154,6 +171,7 @@ const englishQuestions: Record<string, Question[]> = {
     },
     {
       id: 3,
+      knowledgePoint: '一般现在时',
       type: 'choice',
       question: 'My father _____ (work) in a hospital.',
       options: ['work', 'works', 'working', 'worked'],
@@ -162,6 +180,7 @@ const englishQuestions: Record<string, Question[]> = {
     },
     {
       id: 4,
+      knowledgePoint: '一般现在时',
       type: 'choice',
       question: 'I _____ (like) reading books.',
       options: ['likes', 'liking', 'like', 'liked'],
@@ -170,6 +189,7 @@ const englishQuestions: Record<string, Question[]> = {
     },
     {
       id: 5,
+      knowledgePoint: '一般现在时',
       type: 'choice',
       question: 'The cat _____ (sleep) on the sofa.',
       options: ['sleep', 'sleeps', 'sleeping', 'slept'],
@@ -180,6 +200,7 @@ const englishQuestions: Record<string, Question[]> = {
   '一般过去时': [
     {
       id: 1,
+      knowledgePoint: '一般过去时',
       type: 'choice',
       question: 'I _____ (go) to the library yesterday.',
       options: ['go', 'goes', 'went', 'going'],
@@ -188,6 +209,7 @@ const englishQuestions: Record<string, Question[]> = {
     },
     {
       id: 2,
+      knowledgePoint: '一般过去时',
       type: 'choice',
       question: 'She _____ (visit) her grandma last week.',
       options: ['visit', 'visits', 'visiting', 'visited'],
@@ -196,6 +218,7 @@ const englishQuestions: Record<string, Question[]> = {
     },
     {
       id: 3,
+      knowledgePoint: '一般过去时',
       type: 'choice',
       question: 'They _____ (eat) dinner at 7 o\'clock.',
       options: ['eat', 'eats', 'ate', 'eating'],
@@ -204,6 +227,7 @@ const englishQuestions: Record<string, Question[]> = {
     },
     {
       id: 4,
+      knowledgePoint: '一般过去时',
       type: 'choice',
       question: 'He _____ (not play) basketball yesterday.',
       options: ['not played', 'didn\'t play', 'doesn\'t play', 'isn\'t play'],
@@ -212,6 +236,7 @@ const englishQuestions: Record<string, Question[]> = {
     },
     {
       id: 5,
+      knowledgePoint: '一般过去时',
       type: 'choice',
       question: '选出一般过去时的句子：',
       options: [
@@ -230,6 +255,7 @@ const chineseQuestions: Record<string, Question[]> = {
   '字音识别': [
     {
       id: 1,
+      knowledgePoint: '字音识别',
       type: 'choice',
       question: '"家"字的读音是？',
       options: ['jiā', 'jiǎ', 'jiâ', 'jià'],
@@ -238,6 +264,7 @@ const chineseQuestions: Record<string, Question[]> = {
     },
     {
       id: 2,
+      knowledgePoint: '字音识别',
       type: 'choice',
       question: '"重要"中"重"的读音是？',
       options: ['chóng', 'zhòng', 'chòng', 'zhóng'],
@@ -246,6 +273,7 @@ const chineseQuestions: Record<string, Question[]> = {
     },
     {
       id: 3,
+      knowledgePoint: '字音识别',
       type: 'choice',
       question: '"参差"中两字的读音是？',
       options: ['cān chā', 'cēn cī', 'shēn chā', 'cān cī'],
@@ -254,6 +282,7 @@ const chineseQuestions: Record<string, Question[]> = {
     },
     {
       id: 4,
+      knowledgePoint: '字音识别',
       type: 'choice',
       question: '"学习"中"习"的声调是第几声？',
       options: ['第一声', '第二声', '第三声', '第四声'],
@@ -262,6 +291,7 @@ const chineseQuestions: Record<string, Question[]> = {
     },
     {
       id: 5,
+      knowledgePoint: '字音识别',
       type: 'choice',
       question: '下列词语中读音完全正确的是？',
       options: [
@@ -277,6 +307,7 @@ const chineseQuestions: Record<string, Question[]> = {
   '文学常识': [
     {
       id: 1,
+      knowledgePoint: '文学常识',
       type: 'choice',
       question: '《春》的作者是谁？',
       options: ['鲁迅', '朱自清', '老舍', '巴金'],
@@ -285,6 +316,7 @@ const chineseQuestions: Record<string, Question[]> = {
     },
     {
       id: 2,
+      knowledgePoint: '文学常识',
       type: 'choice',
       question: '《背影》是哪位作家的名篇？',
       options: ['矛盾', '朱自清', '冰心', '叶圣陶'],
@@ -293,6 +325,7 @@ const chineseQuestions: Record<string, Question[]> = {
     },
     {
       id: 3,
+      knowledgePoint: '文学常识',
       type: 'choice',
       question: '《故乡》的作者是？',
       options: ['郭沫若', '茅盾', '鲁迅', '巴金'],
@@ -301,6 +334,7 @@ const chineseQuestions: Record<string, Question[]> = {
     },
     {
       id: 4,
+      knowledgePoint: '文学常识',
       type: 'choice',
       question: '唐代诗人李白的代表作是？',
       options: ['《静夜思》', '《春晓》', '《望岳》', '《游子吟》'],
@@ -309,6 +343,7 @@ const chineseQuestions: Record<string, Question[]> = {
     },
     {
       id: 5,
+      knowledgePoint: '文学常识',
       type: 'choice',
       question: '"问渠那得清如许，为有源头活水来"出自哪首诗？',
       options: ['《观书有感》', '《春日》', '《梅花》', '《示儿》'],
@@ -322,6 +357,7 @@ const chineseQuestions: Record<string, Question[]> = {
 const defaultQuestions: Question[] = [
   {
     id: 1,
+    knowledgePoint: '基础知识',
     type: 'choice',
     question: '这道题考察基础知识，下面哪个答案是正确的？',
     options: ['选项A', '选项B（正确）', '选项C', '选项D'],
@@ -330,6 +366,7 @@ const defaultQuestions: Question[] = [
   },
   {
     id: 2,
+    knowledgePoint: '几何知识',
     type: 'choice',
     question: '以下哪个说法是正确的？',
     options: ['所有三角形都是等边三角形', '圆的面积=πr²（正确）', '正方形没有直角', '平行四边形的面积=底×高÷2'],
@@ -338,6 +375,7 @@ const defaultQuestions: Question[] = [
   },
   {
     id: 3,
+    knowledgePoint: '学习方法',
     type: 'choice',
     question: '学习的关键是？',
     options: ['死记硬背', '理解+练习（正确）', '只看不练', '随便学学'],
@@ -346,6 +384,7 @@ const defaultQuestions: Question[] = [
   },
   {
     id: 4,
+    knowledgePoint: '数字比较',
     type: 'choice',
     question: '下面哪个数字最大？',
     options: ['99', '100（正确）', '98', '97'],
@@ -354,6 +393,7 @@ const defaultQuestions: Question[] = [
   },
   {
     id: 5,
+    knowledgePoint: '学习习惯',
     type: 'choice',
     question: '坚持每天学习会有什么效果？',
     options: ['没有效果', '越来越好（正确）', '越来越差', '保持原样'],

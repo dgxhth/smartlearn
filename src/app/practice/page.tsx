@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
 import { ChevronLeft, Star, Zap, RotateCcw, Clock, Trophy, Trash2, RefreshCw } from 'lucide-react'
@@ -81,6 +81,98 @@ function PracticeContent() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
+  const [playedResultSound, setPlayedResultSound] = useState(false)
+
+  // =========== 音效 & 语音系统 ===========
+  // Web Audio API 上下文（延迟初始化）
+  const audioCtxRef = useRef<AudioContext | null>(null)
+
+  function getAudioCtx() {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    }
+    return audioCtxRef.current
+  }
+
+  // 答对音效：清脆叮声
+  function playCorrectSound() {
+    try {
+      const ctx = getAudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.setValueAtTime(880, ctx.currentTime) // A5
+      osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.1) // E6
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.4)
+    } catch {}
+  }
+
+  // 答错音效：温和提示音
+  function playWrongSound() {
+    try {
+      const ctx = getAudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.setValueAtTime(300, ctx.currentTime)
+      gain.gain.setValueAtTime(0.2, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.5)
+    } catch {}
+  }
+
+  // 全对欢呼音效
+  function playCelebrationSound() {
+    try {
+      const ctx = getAudioCtx()
+      const notes = [523, 659, 784, 1047] // C5 E5 G5 C6
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12)
+        gain.gain.setValueAtTime(0.25, ctx.currentTime + i * 0.12)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.3)
+        osc.start(ctx.currentTime + i * 0.12)
+        osc.stop(ctx.currentTime + i * 0.12 + 0.3)
+      })
+    } catch {}
+  }
+
+  // 语音朗读解释（Web Speech API）
+  function speakExplanation(text: string) {
+    try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+        const utt = new SpeechSynthesisUtterance(text)
+        utt.lang = 'zh-CN'
+        utt.rate = 1.1
+        utt.pitch = 1.1
+        // 尝试找一个中文女声
+        const voices = window.speechSynthesis.getVoices()
+        const zhVoice = voices.find(v => v.lang.includes('zh'))
+        if (zhVoice) utt.voice = zhVoice
+        window.speechSynthesis.speak(utt)
+      }
+    } catch {}
+  }
+
+  // 结果页 - 首次渲染时播欢呼
+  useEffect(() => {
+    if (result && !playedResultSound) {
+      setPlayedResultSound(true)
+      if (result.allCorrect) {
+        playCelebrationSound()
+      }
+    }
+  }, [result, playedResultSound])
 
   // 计时器
   useEffect(() => {
@@ -149,6 +241,7 @@ function PracticeContent() {
     setShowFeedback(true)
 
     if (correct) {
+      playCorrectSound()
       const newCombo = comboCount + 1
       setComboCount(newCombo)
       if (newCombo >= 3) {
@@ -156,7 +249,13 @@ function PracticeContent() {
         setTimeout(() => setShowComboAnim(false), 2500)
       }
     } else {
+      playWrongSound()
       setComboCount(0)
+    }
+
+    // 答题后自动朗读解析
+    if (currentQuestion.explanation) {
+      setTimeout(() => speakExplanation(currentQuestion.explanation || ''), 300)
     }
 
     setAnswers(prev => [...prev, answer])

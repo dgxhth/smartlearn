@@ -197,54 +197,6 @@ ${subjectPrompt}
 4. 题目要贴合生活实际，有趣味性
 5. 所有知识点都要均匀覆盖`
 
-原题内容：${originalContent}
-${knowledgePointsText}
-科目：${subject}
-
-${subjectPrompt}
-
-题型要求（必须满足）：
-- 题型包含：choice（选择题）、fill（填空题）、truefalse（判断题）
-- ${questionCount}题中至少包含2种不同题型
-- 选择题（choice）：必须有4个选项，answer为正确选项的完整文字
-- 填空题（fill）：无选项，answer为简洁的正确答案
-- 判断题（truefalse）：options固定为["正确","错误"]，answer为"正确"或"错误"
-${hasMultiplePoints ? `- 均匀覆盖所有${knowledgePoints.length}个知识点，每个知识点至少出1题` : ''}
-
-请返回以下 JSON 格式（仅返回JSON数组，不要其他文字）：
-[
-  {
-    "id": 1,
-    "type": "choice",
-    "question": "完整题目内容",
-    "options": ["选项A", "选项B", "选项C", "选项D"],
-    "answer": "正确选项的完整文字（必须与options中某个选项完全一致）",
-    "explanation": "详细解题解析，包括解题步骤"
-  },
-  {
-    "id": 2,
-    "type": "fill",
-    "question": "完整填空题目，用___表示空白处",
-    "answer": "正确答案",
-    "explanation": "解析"
-  },
-  {
-    "id": 3,
-    "type": "truefalse",
-    "question": "判断题目陈述是否正确",
-    "options": ["正确", "错误"],
-    "answer": "正确或错误",
-    "explanation": "解析"
-  }
-]
-
-重要要求：
-1. answer 字段对选择题必须与 options 中某个选项的文字完全一致
-2. 选择题恰好4个选项，判断题固定2个选项["正确","错误"]
-3. 解析要详细，有助于学生理解
-4. 题目要多样化，不要重复
-5. 难度按1→${questionCount}递进`
-
     const result = await model.generateContent(prompt)
     const responseText = result.response.text()
     const questions = parseJSON<Question[]>(responseText)
@@ -255,7 +207,7 @@ ${hasMultiplePoints ? `- 均匀覆盖所有${knowledgePoints.length}个知识点
 
     // 验证和修正每道题，按知识点分组
     let globalId = 1
-    const result: Question[] = []
+    const finalQuestions: Question[] = []
     for (let kpIdx = 0; kpIdx < knowledgePoints.length; kpIdx++) {
       const kpQuestions = questions.filter((_, qIdx) => {
         // 每个知识点5道题，按顺序分配
@@ -264,7 +216,7 @@ ${hasMultiplePoints ? `- 均匀覆盖所有${knowledgePoints.length}个知识点
       kpQuestions.forEach((q) => {
         const type = q.type === 'fill' ? 'fill' : q.type === 'truefalse' ? 'truefalse' : 'choice'
         if (type === 'fill') {
-          result.push({
+          finalQuestions.push({
             id: globalId++,
             knowledgePoint: knowledgePoints[kpIdx],
             type: 'fill' as const,
@@ -273,7 +225,7 @@ ${hasMultiplePoints ? `- 均匀覆盖所有${knowledgePoints.length}个知识点
             explanation: q.explanation || '请参考教材',
           })
         } else if (type === 'truefalse') {
-          result.push({
+          finalQuestions.push({
             id: globalId++,
             knowledgePoint: knowledgePoints[kpIdx],
             type: 'truefalse' as const,
@@ -283,7 +235,7 @@ ${hasMultiplePoints ? `- 均匀覆盖所有${knowledgePoints.length}个知识点
             explanation: q.explanation || '请参考教材',
           })
         } else {
-          result.push({
+          finalQuestions.push({
             id: globalId++,
             knowledgePoint: knowledgePoints[kpIdx],
             type: 'choice' as const,
@@ -295,7 +247,7 @@ ${hasMultiplePoints ? `- 均匀覆盖所有${knowledgePoints.length}个知识点
         }
       })
     }
-    return result
+    return finalQuestions
   })
 }
 
@@ -384,27 +336,27 @@ function getMockRecognition(subjectHint?: string): RecognitionResult {
 function getMockQuestions(subject: string, _knowledgePoint?: string): Question[] {
   // Mock题目（含多种题型：choice/fill/truefalse）
   const mathQuestions: Question[] = [
-    { id: 1, type: 'choice', question: '解方程：x + 3 = 7，x = ?', options: ['x = 3', 'x = 4', 'x = 10', 'x = -4'], answer: 'x = 4', explanation: 'x + 3 = 7，两边减3，x = 4' },
-    { id: 2, type: 'fill', question: '解方程：2x = 10，x = ___', answer: '5', explanation: '两边除以2，x = 5' },
-    { id: 3, type: 'choice', question: '解方程：3x - 6 = 9，x = ?', options: ['x = 1', 'x = 3', 'x = 5', 'x = 15'], answer: 'x = 5', explanation: '3x = 15，x = 5' },
-    { id: 4, type: 'truefalse', question: '方程 2x + 3 = 7 的解是 x = 3', options: ['正确', '错误'], answer: '错误', explanation: '2x = 4，x = 2，所以 x = 3 是错误的' },
-    { id: 5, type: 'fill', question: '若 x + 5 = 12，则 2x = ___', answer: '14', explanation: 'x = 7，2x = 14' },
+    { id: 1, knowledgePoint: '一元一次方程', type: 'choice', question: '解方程：x + 3 = 7，x = ?', options: ['x = 3', 'x = 4', 'x = 10', 'x = -4'], answer: 'x = 4', explanation: 'x + 3 = 7，两边减3，x = 4' },
+    { id: 2, knowledgePoint: '一元一次方程', type: 'fill', question: '解方程：2x = 10，x = ___', answer: '5', explanation: '两边除以2，x = 5' },
+    { id: 3, knowledgePoint: '一元一次方程', type: 'choice', question: '解方程：3x - 6 = 9，x = ?', options: ['x = 1', 'x = 3', 'x = 5', 'x = 15'], answer: 'x = 5', explanation: '3x = 15，x = 5' },
+    { id: 4, knowledgePoint: '一元一次方程', type: 'truefalse', question: '方程 2x + 3 = 7 的解是 x = 3', options: ['正确', '错误'], answer: '错误', explanation: '2x = 4，x = 2，所以 x = 3 是错误的' },
+    { id: 5, knowledgePoint: '一元一次方程', type: 'fill', question: '若 x + 5 = 12，则 2x = ___', answer: '14', explanation: 'x = 7，2x = 14' },
   ]
 
   const englishQuestions: Question[] = [
-    { id: 1, type: 'choice', question: 'She _____ (go) to school every day.', options: ['go', 'goes', 'going', 'went'], answer: 'goes', explanation: '第三人称单数用goes' },
-    { id: 2, type: 'fill', question: 'They _____ (play) football on weekends. 请填入正确形式', answer: 'play', explanation: 'they是复数，用动词原形play' },
-    { id: 3, type: 'choice', question: 'My father _____ (work) in a hospital.', options: ['work', 'works', 'working', 'worked'], answer: 'works', explanation: 'My father是单数，works' },
-    { id: 4, type: 'truefalse', question: '"He don\'t like apples." 这句话语法正确。', options: ['正确', '错误'], answer: '错误', explanation: '第三人称单数否定句应用doesn\'t，不是don\'t' },
-    { id: 5, type: 'fill', question: 'The cat _____ (sleep) on the sofa. 请填入正确形式', answer: 'sleeps', explanation: 'The cat是单数，sleeps' },
+    { id: 1, knowledgePoint: '一般现在时', type: 'choice', question: 'She _____ (go) to school every day.', options: ['go', 'goes', 'going', 'went'], answer: 'goes', explanation: '第三人称单数用goes' },
+    { id: 2, knowledgePoint: '一般现在时', type: 'fill', question: 'They _____ (play) football on weekends. 请填入正确形式', answer: 'play', explanation: 'they是复数，用动词原形play' },
+    { id: 3, knowledgePoint: '一般现在时', type: 'choice', question: 'My father _____ (work) in a hospital.', options: ['work', 'works', 'working', 'worked'], answer: 'works', explanation: 'My father是单数，works' },
+    { id: 4, knowledgePoint: '一般现在时', type: 'truefalse', question: '"He don\'t like apples." 这句话语法正确。', options: ['正确', '错误'], answer: '错误', explanation: '第三人称单数否定句应用doesn\'t，不是don\'t' },
+    { id: 5, knowledgePoint: '一般现在时', type: 'fill', question: 'The cat _____ (sleep) on the sofa. 请填入正确形式', answer: 'sleeps', explanation: 'The cat是单数，sleeps' },
   ]
 
   const chineseQuestions: Question[] = [
-    { id: 1, type: 'choice', question: '《春》的作者是谁？', options: ['鲁迅', '朱自清', '老舍', '巴金'], answer: '朱自清', explanation: '《春》是朱自清的著名散文' },
-    { id: 2, type: 'fill', question: '《背影》的作者是___', answer: '朱自清', explanation: '《背影》是朱自清1925年写的散文' },
-    { id: 3, type: 'choice', question: '《故乡》的作者是？', options: ['郭沫若', '茅盾', '鲁迅', '巴金'], answer: '鲁迅', explanation: '《故乡》是鲁迅1921年写的小说' },
-    { id: 4, type: 'truefalse', question: '《静夜思》是杜甫的作品。', options: ['正确', '错误'], answer: '错误', explanation: '《静夜思》是唐代诗人李白的作品，不是杜甫' },
-    { id: 5, type: 'fill', question: '"问渠那得清如许"出自朱熹的《___》', answer: '观书有感', explanation: '出自宋代朱熹的《观书有感》' },
+    { id: 1, knowledgePoint: '文学常识', type: 'choice', question: '《春》的作者是谁？', options: ['鲁迅', '朱自清', '老舍', '巴金'], answer: '朱自清', explanation: '《春》是朱自清的著名散文' },
+    { id: 2, knowledgePoint: '文学常识', type: 'fill', question: '《背影》的作者是___', answer: '朱自清', explanation: '《背影》是朱自清1925年写的散文' },
+    { id: 3, knowledgePoint: '文学常识', type: 'choice', question: '《故乡》的作者是？', options: ['郭沫若', '茅盾', '鲁迅', '巴金'], answer: '鲁迅', explanation: '《故乡》是鲁迅1921年写的小说' },
+    { id: 4, knowledgePoint: '文学常识', type: 'truefalse', question: '《静夜思》是杜甫的作品。', options: ['正确', '错误'], answer: '错误', explanation: '《静夜思》是唐代诗人李白的作品，不是杜甫' },
+    { id: 5, knowledgePoint: '古诗文', type: 'fill', question: '"问渠那得清如许"出自朱熹的《___》', answer: '观书有感', explanation: '出自宋代朱熹的《观书有感》' },
   ]
 
   const qMap: Record<string, Question[]> = { '数学': mathQuestions, '英语': englishQuestions, '语文': chineseQuestions }
