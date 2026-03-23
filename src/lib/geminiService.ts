@@ -152,50 +152,38 @@ export async function generateQuestions(
       ? `多个知识点（必须严格遵循！每个知识点出${QUESTIONS_PER_POINT}道）：\n${knowledgePoints.map((k, i) => `  知识点${i + 1}：${k}`).join('\n')}`
       : `知识点：${knowledgePoint}（请出${QUESTIONS_PER_POINT}道练习题）`
 
-    const prompt = `你是一位超级有趣的中学生${subject}老师，请根据以下信息出题：
+    const prompt = `你是SmartLearn的AI出题老师。你的任务是根据【用户提供的知识点】严格出题。
 
-【重要规则】每个知识点必须出${QUESTIONS_PER_POINT}道题！如果${knowledgePoints.length > 1 ? '有多个知识点则总题数为：知识点数 × ' + QUESTIONS_PER_POINT + ' = ' + (knowledgePoints.length * QUESTIONS_PER_POINT) + '道' : '只有1个知识点则出' + QUESTIONS_PER_POINT + '道'}！
+【必须严格遵循】
+1. 只能围绕"${knowledgePointsText}"这个知识点出题！
+2. 绝对不要出与该知识点无关的题目！
+3. 如果知识点是"比较级"，所有题目必须围绕"比较级"这个语法点！
+4. 每个知识点必须出${QUESTIONS_PER_POINT}道题，不能少！
 
-原题内容：${originalContent}
-${knowledgePointsText}
+原题内容（参考）：${originalContent}
 科目：${subject}
 
 ${subjectPrompt}
 
-题型要求（必须满足）：
-- 填空题（fill）≥60%！这是最重要的题型！
-- 其余为判断题（truefalse），最多1道选择题（choice）
-- 填空题（fill）：用___表示空白处，答案为简洁数字/词语/短句
-- 判断题（truefalse）：固定options=["正确","错误"]，answer为"正确"或"错误"
-- 选择题（choice）：最多1道，必须恰好4个选项
+题型要求：
+- 填空题（fill）≥60%
+- 判断题（truefalse）为主观题
+- 选择题（choice）最多1道
+- 所有题目必须与"${knowledgePointsText}"直接相关
 
-请返回以下 JSON 格式（仅返回JSON，不要其他文字）：
+请返回以下 JSON 格式（仅返回JSON）：
 [
   {
-    "knowledgePoint": "该题对应的知识点（用于语音解读）",
+    "knowledgePoint": "${knowledgePointsText}",
     "id": 1,
     "type": "fill",
-    "question": "完整填空题目，用___表示空白处",
+    "question": "【必须围绕${knowledgePointsText}出题】",
     "answer": "正确答案",
-    "explanation": "详细解题解析，说清楚为什么是这个答案"
-  },
-  {
-    "knowledgePoint": "该题对应的知识点",
-    "id": 2,
-    "type": "truefalse",
-    "question": "判断题目陈述是否正确",
-    "options": ["正确", "错误"],
-    "answer": "正确或错误",
-    "explanation": "详细解释"
+    "explanation": "解析"
   }
 ]
 
-重要要求：
-1. 每${QUESTIONS_PER_POINT}道题对应一个知识点，严格按顺序排列
-2. 选择题最多1道，填空题占多数
-3. explanation要像朋友讲题一样亲切生动，不要干巴巴的
-4. 题目要贴合生活实际，有趣味性
-5. 所有知识点都要均匀覆盖`
+重要：返回的每个knowledgePoint字段必须与输入的知识点"${knowledgePointsText}"完全一致！`
 
     const result = await model.generateContent(prompt)
     const responseText = result.response.text()
