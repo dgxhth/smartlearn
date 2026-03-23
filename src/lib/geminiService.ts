@@ -103,31 +103,31 @@ ${subjectInstructions}
 
 const SUBJECT_PROMPTS: Record<string, string> = {
   数学: `出题规则：
-- 题型：计算题、应用题、公式运用、计算变体、判断题
-- 第1-2题：比原题略简单（帮助建立信心）
-- 第3题：与原题同等难度
-- 第4题以后：比原题略难（巩固提高）
-- 每题必须有明确唯一的正确答案
-- 填空题：答案为简洁的数字或表达式
-- 判断题：针对常见易错概念出题，答案为"正确"或"错误"`,
+- 核心原则：每知识点出5道题！不是总共5道！
+- 题型比例：填空题≥60%，其余为判断题和少量选择题
+- 填空题：用___表示空白处，答案为简洁数字或表达式
+- 判断题：针对易错概念出题，答案为"正确"或"错误"
+- 选择题：最多1道，4个选项要有迷惑性
+- 题目趣味性：用生活化场景出题，不要干巴巴的公式
+- 难度递进：5道题按 易→中→难 排列`,
 
   语文: `出题规则：
-- 题型：字词辨析、阅读理解、文学常识、语法判断、填空
-- 第1-2题：字词基础题
-- 第3题：理解应用题
-- 第4题以后：综合拓展题
-- 选择题选项要有迷惑性，但答案必须明确
-- 填空题：答案为简洁的词语或短句
-- 判断题：针对文学常识或语法规则出题`,
+- 核心原则：每知识点出5道题！不是总共5道！
+- 题型比例：填空题≥60%，其余为判断题和少量选择题
+- 填空题：答案为简洁词语或短句
+- 判断题：针对文学常识或语法规则出题
+- 选择题：最多1道，选项要有代表性
+- 题目趣味性：结合课文内容和日常生活
+- 难度递进：5道题按 识记→理解→运用 排列`,
 
   英语: `出题规则：
-- 题型：语法填空、词汇选择、时态判断、翻译改写
-- 第1-2题：单一语法点练习
-- 第3题：综合应用
-- 第4题以后：举一反三变体
-- 选择题选项要典型，干扰项要有代表性
-- 填空题：答案为单词或短语
-- 判断题：针对语法规则或常见错误出题，答案为"正确"或"错误"`,
+- 核心原则：每知识点出5道题！不是总共5道！
+- 题型比例：填空题≥60%（语法填空为主），其余为判断题和少量选择题
+- 填空题：答案为单词、短语或句子
+- 判断题：针对语法规则或常见错误出题
+- 选择题：最多1道
+- 题目趣味性：用真实情境对话出题
+- 难度递进：5道题按 基础→综合→拓展 排列`,
 }
 
 export async function generateQuestions(
@@ -146,13 +146,56 @@ export async function generateQuestions(
       .map(k => k.trim())
       .filter(k => k.length > 0)
 
-    const hasMultiplePoints = knowledgePoints.length > 1
-    const questionCount = knowledgePoints.length >= 3 ? 7 : 5
-    const knowledgePointsText = hasMultiplePoints
-      ? `多个知识点（需均匀覆盖）：\n${knowledgePoints.map((k, i) => `  ${i + 1}. ${k}`).join('\n')}`
-      : `知识点：${knowledgePoint}`
+    // 核心改变：每个知识点出5道题，不是总共5道
+    const QUESTIONS_PER_POINT = 5
+    const knowledgePointsText = knowledgePoints.length > 1
+      ? `多个知识点（必须严格遵循！每个知识点出${QUESTIONS_PER_POINT}道）：\n${knowledgePoints.map((k, i) => `  知识点${i + 1}：${k}`).join('\n')}`
+      : `知识点：${knowledgePoint}（请出${QUESTIONS_PER_POINT}道练习题）`
 
-    const prompt = `你是一位专业的中学${subject}老师，请根据以下信息出${questionCount}道练习题：
+    const prompt = `你是一位超级有趣的中学生${subject}老师，请根据以下信息出题：
+
+【重要规则】每个知识点必须出${QUESTIONS_PER_POINT}道题！如果${knowledgePoints.length > 1 ? '有多个知识点则总题数为：知识点数 × ' + QUESTIONS_PER_POINT + ' = ' + (knowledgePoints.length * QUESTIONS_PER_POINT) + '道' : '只有1个知识点则出' + QUESTIONS_PER_POINT + '道'}！
+
+原题内容：${originalContent}
+${knowledgePointsText}
+科目：${subject}
+
+${subjectPrompt}
+
+题型要求（必须满足）：
+- 填空题（fill）≥60%！这是最重要的题型！
+- 其余为判断题（truefalse），最多1道选择题（choice）
+- 填空题（fill）：用___表示空白处，答案为简洁数字/词语/短句
+- 判断题（truefalse）：固定options=["正确","错误"]，answer为"正确"或"错误"
+- 选择题（choice）：最多1道，必须恰好4个选项
+
+请返回以下 JSON 格式（仅返回JSON，不要其他文字）：
+[
+  {
+    "knowledgePoint": "该题对应的知识点（用于语音解读）",
+    "id": 1,
+    "type": "fill",
+    "question": "完整填空题目，用___表示空白处",
+    "answer": "正确答案",
+    "explanation": "详细解题解析，说清楚为什么是这个答案"
+  },
+  {
+    "knowledgePoint": "该题对应的知识点",
+    "id": 2,
+    "type": "truefalse",
+    "question": "判断题目陈述是否正确",
+    "options": ["正确", "错误"],
+    "answer": "正确或错误",
+    "explanation": "详细解释"
+  }
+]
+
+重要要求：
+1. 每${QUESTIONS_PER_POINT}道题对应一个知识点，严格按顺序排列
+2. 选择题最多1道，填空题占多数
+3. explanation要像朋友讲题一样亲切生动，不要干巴巴的
+4. 题目要贴合生活实际，有趣味性
+5. 所有知识点都要均匀覆盖`
 
 原题内容：${originalContent}
 ${knowledgePointsText}
@@ -210,40 +253,49 @@ ${hasMultiplePoints ? `- 均匀覆盖所有${knowledgePoints.length}个知识点
       throw new Error('Invalid questions format')
     }
 
-    // 验证和修正每道题
-    return questions.slice(0, questionCount).map((q, idx) => {
-      const type = q.type === 'fill' ? 'fill' : q.type === 'truefalse' ? 'truefalse' : 'choice'
-
-      if (type === 'fill') {
-        return {
-          id: idx + 1,
-          type: 'fill' as const,
-          question: q.question || `第${idx + 1}题`,
-          answer: q.answer || '',
-          explanation: q.explanation || '请参考教材',
+    // 验证和修正每道题，按知识点分组
+    let globalId = 1
+    const result: Question[] = []
+    for (let kpIdx = 0; kpIdx < knowledgePoints.length; kpIdx++) {
+      const kpQuestions = questions.filter((_, qIdx) => {
+        // 每个知识点5道题，按顺序分配
+        return qIdx >= kpIdx * QUESTIONS_PER_POINT && qIdx < (kpIdx + 1) * QUESTIONS_PER_POINT
+      })
+      kpQuestions.forEach((q) => {
+        const type = q.type === 'fill' ? 'fill' : q.type === 'truefalse' ? 'truefalse' : 'choice'
+        if (type === 'fill') {
+          result.push({
+            id: globalId++,
+            knowledgePoint: knowledgePoints[kpIdx],
+            type: 'fill' as const,
+            question: q.question || '',
+            answer: q.answer || '',
+            explanation: q.explanation || '请参考教材',
+          })
+        } else if (type === 'truefalse') {
+          result.push({
+            id: globalId++,
+            knowledgePoint: knowledgePoints[kpIdx],
+            type: 'truefalse' as const,
+            question: q.question || '',
+            options: ['正确', '错误'],
+            answer: q.answer === '正确' ? '正确' : '错误',
+            explanation: q.explanation || '请参考教材',
+          })
+        } else {
+          result.push({
+            id: globalId++,
+            knowledgePoint: knowledgePoints[kpIdx],
+            type: 'choice' as const,
+            question: q.question || '',
+            options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['A', 'B', 'C', 'D'],
+            answer: q.answer || '',
+            explanation: q.explanation || '请参考教材',
+          })
         }
-      } else if (type === 'truefalse') {
-        return {
-          id: idx + 1,
-          type: 'truefalse' as const,
-          question: q.question || `第${idx + 1}题`,
-          options: ['正确', '错误'],
-          answer: q.answer === '正确' ? '正确' : '错误',
-          explanation: q.explanation || '请参考教材',
-        }
-      } else {
-        return {
-          id: idx + 1,
-          type: 'choice' as const,
-          question: q.question || `第${idx + 1}题`,
-          options: Array.isArray(q.options) && q.options.length === 4
-            ? q.options
-            : ['A', 'B', 'C', 'D'],
-          answer: q.answer || '',
-          explanation: q.explanation || '请参考教材',
-        }
-      }
-    })
+      })
+    }
+    return result
   })
 }
 
