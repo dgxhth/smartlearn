@@ -152,39 +152,24 @@ export async function generateQuestions(
       ? `多个知识点（必须严格遵循！每个知识点出${QUESTIONS_PER_POINT}道）：\n${knowledgePoints.map((k, i) => `  知识点${i + 1}：${k}`).join('\n')}`
       : `知识点：${knowledgePoint}（请出${QUESTIONS_PER_POINT}道练习题）`
 
-    const prompt = `你是SmartLearn的AI出题老师。你的任务是根据【用户提供的知识点】严格出题。
+    const kp = knowledgePoints[0] // 当前知识点
+const prompt = `你是SmartLearn的AI出题老师。严格按照以下知识点出${QUESTIONS_PER_POINT}道练习题：
 
-【必须严格遵循】
-1. 只能围绕"${knowledgePointsText}"这个知识点出题！
-2. 绝对不要出与该知识点无关的题目！
-3. 如果知识点是"比较级"，所有题目必须围绕"比较级"这个语法点！
-4. 每个知识点必须出${QUESTIONS_PER_POINT}道题，不能少！
+【唯一知识点】${kp}
+【科目】${subject}
+【原题参考】${originalContent || '无'}
 
-原题内容（参考）：${originalContent}
-科目：${subject}
+出题要求：
+- 填空题（fill）占多数，判断题（truefalse）辅助
+- 每道题必须清晰体现"${kp}"这个知识点
+- 不能出与"${kp}"无关的题目
 
-${subjectPrompt}
-
-题型要求：
-- 填空题（fill）≥60%
-- 判断题（truefalse）为主观题
-- 选择题（choice）最多1道
-- 所有题目必须与"${knowledgePointsText}"直接相关
-
-请返回以下 JSON 格式（仅返回JSON）：
+JSON示例（严格按照格式返回，knowledgePoint必须="${kp}"）：
 [
-  {
-    "knowledgePoint": "${knowledgePointsText}",
-    "id": 1,
-    "type": "fill",
-    "question": "【必须围绕${knowledgePointsText}出题】",
-    "answer": "正确答案",
-    "explanation": "解析"
-  }
+  {"id":1,"knowledgePoint":"${kp}","type":"fill","question":"围绕${kp}的一道填空题","answer":"答案","explanation":"解释"}
 ]
 
-重要：返回的每个knowledgePoint字段必须与输入的知识点"${knowledgePointsText}"完全一致！`
-
+注意：返回的每道题knowledgePoint字段值必须等于"${kp}"！question内容必须围绕"${kp}"！`
     const result = await model.generateContent(prompt)
     const responseText = result.response.text()
     const questions = parseJSON<Question[]>(responseText)
