@@ -54,3 +54,16 @@ model Practice {
   allCorrect Boolean  // 是否全对
   createdAt  DateTime @default(now())
 }
+
+// 题库：一套题目生成后持久保存，反复使用不消耗积分
+model QuestionBank {
+  id             String   @id @default(uuid())
+  userId         String
+  subject        String   // 科目
+  knowledgePoint String   // 知识点（唯一键的一部分）
+  questions      String   // JSON: 生成的题目数组
+  sourceMistakeId String?  // 来源的错题ID（可追溯）
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, subject, knowledgePoint])
+}
