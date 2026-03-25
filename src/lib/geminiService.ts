@@ -49,25 +49,31 @@ export async function recognizeImage(
 
     const subjectInstructions = subjectHint
       ? `用户提示科目是：${subjectHint}。`
-      : '请自动判断科目（数学/语文/英语）。'
+      : '请自动判断科目（数学/语文/英语/物理/化学/历史/地理/政治/生物）。'
 
-    const prompt = `你是一个专业的中学题目识别专家。请分析这张图片中的题目。
+    const prompt = `你是一个错题分析专家。请仔细分析这张图片，识别出学生做错的题目。
+
+图片可能包含：
+- 作业或试卷中标记为错误的题目（通常有红笔批改、叉号等标记）
+- 错题本上整理的错题
+- 家长或老师批改过的练习
 
 ${subjectInstructions}
 
 请返回以下 JSON 格式（仅返回JSON，不要其他文字）：
 {
-  "subject": "数学|语文|英语",
-  "content": "完整的题目内容（保留原题格式）",
-  "knowledgePoint": "具体知识点（例如：一元一次方程、三角形内角和、一般过去时等）",
+  "subject": "数学|语文|英语|物理|化学|历史|地理|政治|生物",
+  "content": "完整的错题题目内容（保留原题格式，包括题目、选项、学生的错误答案、正确答案",
+  "knowledgePoint": "这道题考查的具体知识点（例如：分数的加法、一般过去时、文言文阅读理解等）",
   "confidence": 0.95,
   "rawText": "图片中识别到的所有文字"
 }
 
 注意：
-- subject 只能是 数学、语文、英语 三选一
-- content 尽量完整还原题目，包括选项（如果有）
-- knowledgePoint 要具体，不要太宽泛
+- subject 应该是图片中错题的实际科目，不是"数学"就完事了
+- content 必须包含：①原题题目 ②学生的错误答案 ③正确答案（如果有批改痕迹）
+- knowledgePoint 要具体到知识点名称，不要泛泛写"计算题"或"阅读理解"
+- 如果图片中没有明显的错题标记，请根据题目内容推断科目和知识点
 - confidence 表示你对识别结果的置信度（0-1）`
 
     const result = await model.generateContent([
@@ -89,7 +95,8 @@ ${subjectInstructions}
     }
 
     // 确保 subject 合法
-    if (!['数学', '语文', '英语'].includes(parsed.subject)) {
+    const validSubjects = ['数学', '语文', '英语', '物理', '化学', '历史', '地理', '政治', '生物']
+    if (!validSubjects.includes(parsed.subject)) {
       parsed.subject = subjectHint || '数学'
     }
 
@@ -270,25 +277,32 @@ export async function generateQuestionsWithFallback(
 // =============================================
 
 function getMockRecognition(subjectHint?: string): RecognitionResult {
-  const subjects = subjectHint ? [subjectHint] : ['数学', '语文', '英语']
+  const allSubjects = ['数学', '语文', '英语', '物理', '化学', '历史', '地理', '政治', '生物']
+  const subjects = subjectHint ? [subjectHint] : allSubjects
   const randomSubject = subjects[Math.floor(Math.random() * subjects.length)]
 
   const mockData: Record<string, Array<{ content: string; knowledgePoint: string }>> = {
     数学: [
-      { content: '解方程：2x + 5 = 13，求x的值', knowledgePoint: '一元一次方程' },
-      { content: '计算：3² + 4² = ?（提示：利用幂运算）', knowledgePoint: '幂运算' },
-      { content: '一个三角形三个内角分别是60°、70°，第三个角是多少度？', knowledgePoint: '三角形内角和' },
-      { content: '已知函数 f(x) = 2x + 3，求 f(5) 的值', knowledgePoint: '一次函数' },
+      { content: '解方程：2x + 5 = 13，求x的值\n学生的错误答案：x=4\n正确答案：x=4', knowledgePoint: '一元一次方程' },
+      { content: '计算：3² + 4² = ?（提示：利用幂运算）\n学生的错误答案：25\n正确答案：25', knowledgePoint: '幂运算' },
+      { content: '一个三角形三个内角分别是60°、70°，第三个角是多少度？\n学生的错误答案：100°\n正确答案：50°', knowledgePoint: '三角形内角和' },
+      { content: '已知函数 f(x) = 2x + 3，求 f(5) 的值\n学生的错误答案：f(5)=13\n正确答案：f(5)=13', knowledgePoint: '一次函数' },
     ],
     语文: [
-      { content: '下列词语中，加点字读音完全正确的一项是？', knowledgePoint: '字音识别' },
-      { content: '《春》是哪位作家的名篇散文？请写出作者名和文章主题', knowledgePoint: '文学常识' },
-      { content: '"问渠那得清如许，为有源头活水来"出自哪首诗，作者是谁？', knowledgePoint: '古诗文' },
+      { content: '下列词语中，加点字读音完全正确的一项是？\n学生的错误答案：B\n正确答案：A', knowledgePoint: '字音识别' },
+      { content: '《春》是哪位作家的名篇散文？请写出作者名和文章主题\n学生的错误答案：老舍\n正确答案：朱自清，主题是赞美春回大地、生机勃勃', knowledgePoint: '文学常识' },
+      { content: '"问渠那得清如许，为有源头活水来"出自哪首诗，作者是谁？\n学生的错误答案：《游子吟》，孟郊\n正确答案：《观书有感》，朱熹', knowledgePoint: '古诗文' },
     ],
     英语: [
-      { content: 'Fill in the blank: I _____ (go) to school every day. (一般现在时)', knowledgePoint: '一般现在时' },
-      { content: 'Choose the correct answer: She _____ her homework yesterday.\nA. do  B. does  C. did  D. doing', knowledgePoint: '一般过去时' },
-      { content: 'Translate: "我昨天去了图书馆" to English.', knowledgePoint: '一般过去时' },
+      { content: 'Fill in the blank: I _____ (go) to school every day. (一般现在时)\n学生的错误答案：goes\n正确答案：go', knowledgePoint: '一般现在时' },
+      { content: 'Choose the correct answer: She _____ her homework yesterday.\nA. do  B. does  C. did  D. doing\n学生的错误答案：B\n正确答案：C', knowledgePoint: '一般过去时' },
+      { content: 'Translate: "我昨天去了图书馆" to English.\n学生的错误答案：I go to the library yesterday.\n正确答案：I went to the library yesterday.', knowledgePoint: '时态综合' },
+    ],
+    物理: [
+      { content: '一个物体受到10N的力，物体质量为2kg，求加速度\n学生的错误答案：a=8m/s²\n正确答案：a=5m/s²', knowledgePoint: '牛顿第二定律 F=ma' },
+    ],
+    化学: [
+      { content: '写出水的化学式\n学生的错误答案：H2O2\n正确答案：H2O', knowledgePoint: '化学式书写' },
     ],
   }
 
