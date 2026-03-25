@@ -176,6 +176,7 @@ function PracticeContent() {
   }
 
   // 结果页 - 首次渲染时播欢呼
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (result && !playedResultSound) {
       setPlayedResultSound(true)
