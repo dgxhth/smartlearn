@@ -51,37 +51,40 @@ export async function recognizeImage(
       ? `用户提示科目是：${subjectHint}。`
       : '请自动判断科目（数学/语文/英语/物理/化学/历史/地理/政治/生物）。'
 
-    const prompt = `你是一个中学错题分析专家。请仔细分析这张图片。
+    const prompt = `你是一个中学/小学错题分析专家。请仔细分析这张图片。
 
 【核心任务】识别这张试卷或练习的：
 1. **科目**（先找试卷标题栏，不是看有没有数字就判断为数学！）
-2. **错题内容**（哪道题做错了）
-3. **知识点**（要具体，不要写"数学"两个字就完事）
+2. **错题内容**（哪道题做错了，学生的错误答案是什么）
+3. **知识点**（要具体，不要写"英语"两个字就完事）
 
-【找科目的方法】
-请首先找到试卷或练习纸**最上方的标题栏**，通常写的是：
-- "物理试卷" / "物理练习" → 科目=物理
-- "数学试卷" / "数学练习" / "口算练习" → 科目=数学
-- "语文试卷" / "英语试卷" → 以此类推
-- 还可能有：化学、历史、地理、政治、生物
-
-**重要**：物理试卷里也会有计算题（用公式算速度、密度、力等），但那是物理不是数学！小学一年级的"10以内加减法"口算题是"数学"，但知识点要具体写成"10以内加法"或"10以内加减法"！
+【常见练习类型】
+- 试卷标题栏：写着"数学试卷"、"英语试卷"、"物理练习"等
+- 单词默写/听写：英语老师让学生写单词，错误通常是拼写错误
+- 口算练习：数学老师让学生算术，错误通常是计算错误
+- 作文练习：语文老师让学生写作文
 
 ${subjectInstructions}
 
 请返回以下 JSON 格式（仅返回JSON，不要其他文字）：
 {
   "subject": "数学|语文|英语|物理|化学|历史|地理|政治|生物",
-  "content": "完整的错题题目内容（包括原题、学生的错误答案、正确答案，如果有批改痕迹）",
-  "knowledgePoint": "这道题考查的具体知识点（要具体！不要写"数学"或"计算题"，要写如"10以内加法"、"声音的传播速度"、"一般过去时"等具体知识点）",
+  "content": "完整的错题题目内容（包括：原题/题目要求 + 学生的错误答案 + 正确答案）",
+  "knowledgePoint": "这道题考查的具体知识点（要非常具体！）",
   "confidence": 0.95,
   "rawText": "图片中识别到的所有文字"
 }
 
+【知识点参考】
+- 英语单词默写错误 → 应该是具体的单词名称，例如"单词拼写：school/shirt/short"等，不要写"英语"或"单词"
+- 数学计算错误 → 例如"20以内进位加法"、"10以内减法"
+- 物理计算错误 → 例如"声音速度公式 v=s/t"
+- 语文错别字 → 例如"易错字：的/得/地"
+- 历史年份错误 → 例如"重要历史事件年份"
+
 注意：
-- 知识点必须具体！例如："一元一次方程" ✅，"数学" ❌
-- 小学数学知识点参考：10以内加法、10以内减法、20以内进位加法、乘法口诀、认识图形等
-- 物理知识点参考：声音的传播速度、超声波与次声波、光的折射、密度公式等
+- 知识点必须具体！例如："英语单词拼写" ❌，"单词拼写：school" ✅
+- 小学英语知识点参考：常见单词拼写（school, shirt, short, apple, book等）、音标认读、字母大小写
 - confidence 表示你对识别结果的置信度（0-1）`
 
     const result = await model.generateContent([
@@ -302,9 +305,11 @@ function getMockRecognition(subjectHint?: string): RecognitionResult {
       { content: '"问渠那得清如许，为有源头活水来"出自哪首诗，作者是谁？\n学生的错误答案：《游子吟》，孟郊\n正确答案：《观书有感》，朱熹', knowledgePoint: '古诗文' },
     ],
     英语: [
-      { content: 'Fill in the blank: I _____ (go) to school every day. (一般现在时)\n学生的错误答案：goes\n正确答案：go', knowledgePoint: '一般现在时' },
+      { content: '单词默写：学校→学生拼写"scool"，正确答案：school', knowledgePoint: '单词拼写：school' },
+      { content: '单词默写：矮→学生拼写"shoort"，正确答案：short', knowledgePoint: '单词拼写：short' },
+      { content: 'Fill in the blank: I _____ (go) to school every day. (一般现在时)\n学生的错误答案：goes\n正确答案：go', knowledgePoint: '一般现在时：第三人称单数' },
       { content: 'Choose the correct answer: She _____ her homework yesterday.\nA. do  B. does  C. did  D. doing\n学生的错误答案：B\n正确答案：C', knowledgePoint: '一般过去时' },
-      { content: 'Translate: "我昨天去了图书馆" to English.\n学生的错误答案：I go to the library yesterday.\n正确答案：I went to the library yesterday.', knowledgePoint: '时态综合' },
+      { content: 'Translate: "我昨天去了图书馆" to English.\n学生的错误答案：I go to the library yesterday.\n正确答案：I went to the library yesterday.', knowledgePoint: '时态综合：现在时vs过去时' },
     ],
     物理: [
       { content: '一个物体受到10N的力，物体质量为2kg，求加速度\n学生的错误答案：a=8m/s²\n正确答案：a=5m/s²', knowledgePoint: '牛顿第二定律 F=ma' },
