@@ -250,20 +250,13 @@ export async function recognizeImageWithFallback(
   mimeType: string,
   subjectHint?: string
 ): Promise<RecognitionResult> {
-  if (!apiKey) {
+  // 无 API Key 或无图片 → Demo 模式（用户主动选择，不算错误）
+  if (!apiKey || !imageBase64) {
     return getMockRecognition(subjectHint)
   }
 
-  if (!imageBase64) {
-    return getMockRecognition(subjectHint)
-  }
-
-  try {
-    return await recognizeImage(imageBase64, mimeType, subjectHint)
-  } catch (err) {
-    console.error('Gemini recognition failed, using fallback:', err)
-    return getMockRecognition(subjectHint)
-  }
+  // 有图片有 Key → 调用 AI，失败直接抛错误，不降级
+  return await recognizeImage(imageBase64, mimeType, subjectHint)
 }
 
 export async function generateQuestionsWithFallback(
