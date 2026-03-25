@@ -71,6 +71,7 @@ function PracticeContent() {
   const [showFeedback, setShowFeedback] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<PracticeResult | null>(null)
   const [comboCount, setComboCount] = useState(0)
@@ -204,10 +205,14 @@ function PracticeContent() {
     try {
       const res = await fetch(`/api/practice?mistakeId=${mistakeId}`)
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '加载失败')
+      if (!data.questions || data.questions.length === 0) throw new Error('题目为空，请重新生成')
       setMistake(data.mistake)
       setQuestions(data.questions)
+      setError('')
     } catch (err) {
       console.error('Failed to fetch practice:', err)
+      setError(err instanceof Error ? err.message : '题目加载失败，请检查网络后重试')
     } finally {
       setLoading(false)
     }
@@ -219,8 +224,11 @@ function PracticeContent() {
     try {
       const res = await fetch(`/api/practice?mistakeId=${mistakeId}&regenerate=true`)
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '生成失败')
+      if (!data.questions || data.questions.length === 0) throw new Error('题目为空')
       setMistake(data.mistake)
       setQuestions(data.questions)
+      setError('')
       // 重置所有答题状态
       setCurrentIndex(0)
       setAnswers([])
@@ -232,6 +240,7 @@ function PracticeContent() {
       setResult(null)
     } catch (err) {
       console.error('Failed to regenerate practice:', err)
+      setError(err instanceof Error ? err.message : '生成失败，请重试')
     } finally {
       setRegenerating(false)
     }
@@ -375,6 +384,33 @@ function PracticeContent() {
                 style={{ animationDelay: `${i * 0.15}s` }}
               />
             ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // =========== 错误状态 ===========
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-6">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="text-6xl">😵</div>
+          <h2 className="text-xl font-bold text-slate-700">题目加载失败</h2>
+          <p className="text-slate-500 text-sm">{error}</p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => { setError(''); setLoading(true); fetchPractice() }}
+              className="w-full py-4 rounded-2xl font-bold bg-blue-500 text-white active:scale-95 transition-all min-h-[44px]"
+            >
+              🔄 重试
+            </button>
+            <button
+              onClick={() => router.push('/upload')}
+              className="w-full py-4 rounded-2xl font-bold bg-slate-200 text-slate-600 active:scale-95 transition-all min-h-[44px]"
+            >
+              ← 重新上传
+            </button>
           </div>
         </div>
       </div>
@@ -535,6 +571,7 @@ function PracticeContent() {
                 setFillAnswer('')
                 setShowFeedback(false)
                 setComboCount(0)
+                setError('')
                 setLoading(true)
                 fetchPractice()
               }}

@@ -18,8 +18,12 @@ interface RecognizedData {
   confidence?: number
 }
 
-const SUBJECTS = ['数学', '语文', '英语']
-const SUBJECT_EMOJIS: Record<string, string> = { '数学': '🔢', '语文': '📖', '英语': '🌍' }
+const SUBJECTS = ['数学', '语文', '英语', '物理', '化学', '历史', '地理', '政治', '生物']
+const SUBJECT_EMOJIS: Record<string, string> = {
+  '数学': '🔢', '语文': '📖', '英语': '🌍',
+  '物理': '⚡', '化学': '🧪', '历史': '📜',
+  '地理': '🌍', '政治': '🏛️', '生物': '🧬'
+}
 
 export default function UploadPage() {
   const router = useRouter()
