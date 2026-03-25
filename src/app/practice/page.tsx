@@ -149,17 +149,28 @@ function PracticeContent() {
   // 语音朗读解释（Web Speech API）
   function speakExplanation(text: string) {
     try {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
-        const utt = new SpeechSynthesisUtterance(text)
-        utt.lang = 'zh-CN'
-        utt.rate = 1.1
-        utt.pitch = 1.1
-        // 尝试找一个中文女声
-        const voices = window.speechSynthesis.getVoices()
-        const zhVoice = voices.find(v => v.lang.includes('zh'))
+      if (!('speechSynthesis' in window)) return
+      window.speechSynthesis.cancel()
+      const utt = new SpeechSynthesisUtterance(text)
+      utt.lang = 'zh-CN'
+      utt.rate = 1.0
+      utt.pitch = 1.1
+      // 尝试找一个中文女声
+      const trySpeak = (voices: SpeechSynthesisVoice[]) => {
+        const zhVoice = voices.find(v => v.lang.includes('zh-CN')) ||
+                       voices.find(v => v.lang.includes('zh')) ||
+                       voices[0]
         if (zhVoice) utt.voice = zhVoice
         window.speechSynthesis.speak(utt)
+      }
+      // Chrome需要等待voices加载
+      const voices = window.speechSynthesis.getVoices()
+      if (voices.length > 0) {
+        trySpeak(voices)
+      } else {
+        window.speechSynthesis.onvoiceschanged = () => {
+          trySpeak(window.speechSynthesis.getVoices())
+        }
       }
     } catch {}
   }
@@ -802,7 +813,19 @@ function PracticeContent() {
                   </p>
                 )}
                 {currentQuestion?.explanation && (
-                  <p className="text-sm text-slate-500 leading-relaxed">{currentQuestion.explanation}</p>
+                  <div className="mt-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">💡</span>
+                      <span className="font-bold text-blue-600 text-sm">解题思路</span>
+                      <button
+                        onClick={() => speakExplanation(currentQuestion.explanation || '')}
+                        className="ml-auto flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded-full transition-colors"
+                      >
+                        🔊 听解析
+                      </button>
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">{currentQuestion.explanation}</p>
+                  </div>
                 )}
               </div>
             </div>
